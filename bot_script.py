@@ -130,12 +130,52 @@ def get_dkp(discord_id):
   finally:
     conn.close()
 
+def increment_need(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    cur.execute("UPDATE players SET need_rolls = need_rolls + 1 WHERE discord_id=" + str(discord_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def increment_greed(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    cur.execute("UPDATE players SET greed_rolls = greed_rolls + 1 WHERE discord_id=" + str(discord_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def set_name(discord_id, name):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    #the parens sanitize input i guess
+    cur.execute("UPDATE players SET account_name=? WHERE discord_id=" + str(discord_id), (name,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
 
 def random_num():
   return random.randint(0,100)
 
 async def commands(channel):
-  message=( "```"
+  #make rich embed
+  message=( 
             "!hello - says hello back!\n"
             "!commands - displays this helpful dialogue\n"
             "!need - rolls need from 0-100\n"
@@ -143,17 +183,22 @@ async def commands(channel):
             "!list - lists dkp totals of all members\n"
             "!dkp - returns how much dkp you have\n"
             "!countdown - returns how much time till classic release\n"
-            "```"
+            "!setname - set the name of your character for armory lookups and other references\n"
           )
-  await channel.send(message)
+
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Commands", value=message)
+  await channel.send(embed=embedMessage)
 
 async def hello(channel, name):
   await channel.send('Hi ' + name + "!")
 
-async def need(channel, name):
+async def need(channel, author, name):
+  increment_need(author.id)
   await channel.send(name + " need rolled a " + str(random_num()) + "!")
 
-async def greed(channel, name):
+async def greed(channel, author, name):
+  increment_greed(author.id)
   await channel.send(name + " greed rolled a " + str(random_num()) + "!")
 
 async def dkp(channel, author, name):
@@ -171,15 +216,30 @@ async def listAcc(client,channel):
   message = ""
   for result in results:
     if not client.user.id == result[1]:
-      user=client.get_user(result[1])
-      message += user.name + " - " + str(result[3]) + " dkp\n"
-  await channel.send(message)
+      user=channel.guild.get_member(result[1])
+      message += (user.display_name + "'s main character is: " + (result[5] if not result[5] == "" else "unknown")
+                 + "\t|\t" + str(result[2]) + " dkp" 
+                 + "\t|\t" + str(result[3]) + " need rolls "
+                 + "\t|\t" + str(result[4]) + " greed rolls.\n")
+  
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Ducks", value=message)
+  
+  await channel.send(embed=embedMessage)
 
 async def countdown(channel):
   release = datetime.datetime(2019, 8, 26)
   current = datetime.datetime.now()
   togo = release - current
   await channel.send("There are only " + str(togo.days) + " days until classic is released!")
+
+async def greed(channel, author, name):
+  increment_greed(author.id)
+  await channel.send(name + " greed rolled a " + str(random_num()) + "!")
+
+async def setname(channel, author, name, accname):
+  set_name(author.id,accname)
+  await channel.send(name + "'s character name is now: " + accname)
 
 async def parse_command(client,channel,author,name,content):
   if not content[0] == '!':
@@ -194,15 +254,17 @@ async def parse_command(client,channel,author,name,content):
   elif operation == "hello":
     await hello(channel, name)
   elif operation == "need":
-    await need(channel, name)
+    await need(channel, author, name)
   elif operation == "greed":
-    await greed(channel, name)
+    await greed(channel, author, name)
   elif operation == "dkp":
     await dkp(channel, author, name)
   elif operation == "list":
     await listAcc(client,channel)
   elif operation == "countdown":
     await countdown(channel)
+  elif operation == "setname":
+    await setname(channel,author,name,tokens[1])
     
   
 
@@ -218,7 +280,7 @@ async def on_ready(): #This runs once when connected
 async def on_message(message):
   #Don't respond to self
   if not message.author == client.user:
-    await parse_command(client,message.channel,message.author,message.author.name,message.content)
+    await parse_command(client,message.channel,message.author,message.author.display_name,message.content)
   print(f"{message.channel}: {message.author}: {message.author.name}: {message.content}")
 
 client.run(token.strip())
