@@ -177,6 +177,7 @@ async def commands(channel):
   #make rich embed
   message=( 
             "!hello - says hello back!\n"
+            "!quack - Quacks!\n"
             "!commands - displays this helpful dialogue\n"
             "!need - rolls need from 0-100\n"
             "!greed - rolls greed from 0-100\n"
@@ -193,6 +194,9 @@ async def commands(channel):
 
 async def hello(channel, name):
   await channel.send('Hi ' + name + "!")
+
+async def quack(channel, name):
+  await channel.send('Quack!')
 
 async def need(channel, author, name):
   increment_need(author.id)
@@ -233,10 +237,6 @@ async def countdown(channel):
   current = datetime.datetime.now()
   togo = release - current
   await channel.send("There are only " + str(togo.days) + " days until classic is released!")
-
-async def greed(channel, author, name):
-  increment_greed(author.id)
-  await channel.send(name + " greed rolled a " + str(random_num()) + "!")
 
 async def setname(channel, author, name, accname):
   set_name(author.id,accname)
@@ -303,6 +303,8 @@ async def parse_command(client,channel,author,name,content):
     await commands(channel)
   elif operation == "hello":
     await hello(channel, name)
+  elif operation == "quack":
+    await quack(channel, name)
   elif operation == "need":
     await need(channel, author, name)
   elif operation == "greed":
