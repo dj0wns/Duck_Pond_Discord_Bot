@@ -183,7 +183,8 @@ async def commands(channel):
             "!list - lists dkp totals of all members\n"
             "!dkp - returns how much dkp you have\n"
             "!countdown - returns how much time till classic release\n"
-            "!setname - set the name of your character for armory lookups and other references\n"
+            "!setname [name] - set the name of your character for armory lookups and other references\n"
+            "!setclass [class] - set your primary class\n"
           )
 
   embedMessage = discord.Embed()
@@ -241,6 +242,55 @@ async def setname(channel, author, name, accname):
   set_name(author.id,accname)
   await channel.send(name + "'s character name is now: " + accname)
 
+async def setclass(channel, author, name, classname, client):
+  classname = classname.lower()
+  addlist = []
+  removelist = []
+  if classname == "warrior":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Warrior"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Warrior"))
+  if classname == "druid":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Druid"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Druid"))
+  if classname == "mage":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Mage"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Mage"))
+  if classname == "warlock":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Warlock"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Warlock"))
+  if classname == "hunter":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Hunter"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Hunter"))
+  if classname == "priest":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Priest"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Priest"))
+  if classname == "rogue":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Rogue"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Rogue"))
+  if classname == "shaman":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Shaman"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Shaman"))
+  if classname == "paladin":
+    addlist.append(discord.utils.get(channel.guild.roles, name="Paladin"))
+  else:
+    removelist.append(discord.utils.get(channel.guild.roles, name="Paladin"))
+  for add in addlist:
+    await author.add_roles(add) 
+  for remove in removelist:
+    await author.remove_roles(remove) 
+  await channel.send(name + " is now a " + classname + "!")
+
+async def notEnoughArguments(channel, argsExpected, commandText):
+  await channel.send(commandText + " requires at least " + str(argsExpected) + " argument" + ("s." if argsExpected > 1 else "."))
+
 async def parse_command(client,channel,author,name,content):
   if not content[0] == '!':
     return False
@@ -264,7 +314,15 @@ async def parse_command(client,channel,author,name,content):
   elif operation == "countdown":
     await countdown(channel)
   elif operation == "setname":
-    await setname(channel,author,name,tokens[1])
+    if len(tokens) >= 2:   
+      await setname(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!setname")
+  elif operation == "setclass":
+    if len(tokens) >= 2:   
+      await setclass(channel,author,name,tokens[1],client)
+    else:
+      await notEnoughArguments(channel,1,"!setclass")
     
   
 
