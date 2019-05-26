@@ -3,6 +3,7 @@ import discord
 import asyncio
 import random
 import os
+import datetime
 from sqlite3 import Error
 
 fpath=os.path.realpath(__file__)
@@ -141,6 +142,7 @@ async def commands(channel):
             "!greed - rolls greed from 0-100\n"
             "!list - lists dkp totals of all members\n"
             "!dkp - returns how much dkp you have\n"
+            "!countdown - returns how much time till classic release\n"
             "```"
           )
   await channel.send(message)
@@ -173,6 +175,12 @@ async def listAcc(client,channel):
       message += user.name + " - " + str(result[3]) + " dkp\n"
   await channel.send(message)
 
+async def countdown(channel):
+  release = datetime.datetime(2019, 8, 26)
+  current = datetime.datetime.now()
+  togo = release - current
+  await channel.send("There are only " + str(togo.days) + " days until classic is released!")
+
 async def parse_command(client,channel,author,name,content):
   if not content[0] == '!':
     return False
@@ -193,6 +201,8 @@ async def parse_command(client,channel,author,name,content):
     await dkp(channel, author, name)
   elif operation == "list":
     await listAcc(client,channel)
+  elif operation == "countdown":
+    await countdown(channel)
     
   
 
