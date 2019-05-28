@@ -186,6 +186,7 @@ async def commands(channel):
             "!countdown - returns how much time till classic release\n"
             "!setname [name] - set the name of your character for armory lookups and other references\n"
             "!setclass [class] - set your primary class\n"
+            "!classlist - list the number of each class currently in the guild\n"
           )
 
   embedMessage = discord.Embed()
@@ -222,10 +223,10 @@ async def listAcc(client,channel):
   for result in results:
     if not client.user.id == result[1]:
       user=channel.guild.get_member(result[1])
-      message += (user.display_name + "'s main character is: " + (result[5] if not result[5] == "" else "unknown")
+      message += (user.display_name + "'s main is: " + (result[5] if not result[5] == "" else "unknown")
                  + "\t|\t" + str(result[2]) + " dkp" 
-                 + "\t|\t" + str(result[3]) + " need rolls "
-                 + "\t|\t" + str(result[4]) + " greed rolls.\n")
+                 + "\t|\t" + str(result[3]) + " n "
+                 + "\t|\t" + str(result[4]) + " g.\n")
   
   embedMessage = discord.Embed()
   embedMessage.add_field(name="Ducks", value=message)
@@ -288,6 +289,64 @@ async def setclass(channel, author, name, classname, client):
     await author.remove_roles(remove) 
   await channel.send(name + " is now a " + classname + "!")
 
+async def classlist(channel, client):
+  members=client.get_all_members()
+  classmap = {}
+  classmap["Druid"] = 0
+  classmap["Hunter"] = 0
+  classmap["Mage"] = 0
+  classmap["Paladin"] = 0
+  classmap["Priest"] = 0
+  classmap["Rogue"] = 0
+  classmap["Shaman"] = 0
+  classmap["Warlock"] = 0
+  classmap["Warrior"] = 0
+  classmap["Undecided"] = 0
+  for member in members:
+    #dont care about bot
+    if not client.user.id == member.id:
+      classes=0
+      roles = member.roles
+      if discord.utils.get(channel.guild.roles, name="Warrior") in roles:
+        classmap["Warrior"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Druid") in roles:
+        classmap["Druid"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Mage") in roles:
+        classmap["Mage"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Warlock") in roles:
+        classmap["Warlock"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Hunter") in roles:
+        classmap["Hunter"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Priest") in roles:
+        classmap["Priest"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Rogue") in roles:
+        classmap["Rogue"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Shaman") in roles:
+        classmap["Shaman"]+= 1
+        classes+= 1
+      if discord.utils.get(channel.guild.roles, name="Paladin") in roles:
+        classmap["Paladin"]+= 1
+        classes+= 1
+      if classes > 1:
+        await channel.send(member.name + " has multiple classes!")
+      if classes == 0:
+        classmap["Undecided"]+= 1
+
+  message = ""
+  for classname,count in classmap.items():
+    message += classname + ": " + str(count) + "\n"
+
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Classes", value=message)
+  await channel.send(embed=embedMessage)
+
 async def notEnoughArguments(channel, argsExpected, commandText):
   await channel.send(commandText + " requires at least " + str(argsExpected) + " argument" + ("s." if argsExpected > 1 else "."))
 
@@ -325,6 +384,8 @@ async def parse_command(client,channel,author,name,content):
       await setclass(channel,author,name,tokens[1],client)
     else:
       await notEnoughArguments(channel,1,"!setclass")
+  elif operation == "classlist":
+      await classlist(channel,client)
     
   
 
