@@ -271,11 +271,14 @@ async def listAcc(client,channel):
       add_account_record(member.id)
   
   results=print_account_records()
+  if results == None: return
   message = html_header()
   message += '<p style="font-size:40px">'
   for result in results:
     if not client.user.id == result[1]:
       user=channel.guild.get_member(result[1])
+      if user == None:
+        continue
       message += (user.display_name + ":<br>" 
                  + (result[5] if not result[5] == "" else "unknown")
                  + "&emsp;" + str(result[2]) + " dkp<br>" 
@@ -446,8 +449,6 @@ async def parse_command(client,channel,author,name,content):
 token = open(path+"/token", "r").readline()
 print(token)
 client = discord.Client()
-
-add_account_record(1077)
 
 @client.event
 async def on_ready(): #This runs once when connected
