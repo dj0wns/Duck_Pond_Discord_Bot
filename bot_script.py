@@ -20,7 +20,8 @@ def create_table(conn):
                                     dkp integer,
                                     need_rolls integer,
                                     greed_rolls integer,
-                                    account_name text
+                                    account_name text,
+                                    join_date datetime
                                 ); """
   try:
     c = conn.cursor()
@@ -37,9 +38,9 @@ def create_account_if_doesnt_exist(conn, discord_id):
 
 
 def create_player(conn, discord_id):
-  sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name)
-           VALUES(?,?,?,?,?)  '''
-  to_insert = (discord_id,0,0,0,"")
+  sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name,join_date)
+           VALUES(?,?,?,?,?,?)  '''
+  to_insert = (discord_id,0,0,0,"",str(datetime.datetime.now()))
   try:
     cur = conn.cursor()
     cur.execute(sql, to_insert)
@@ -173,6 +174,27 @@ def set_name(discord_id, name):
   finally:
     conn.close()
 
+def get_join_date(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    cur.execute("SELECT join_date FROM players WHERE discord_id=" + str(discord_id))
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def days_since_join(join_date):
+  join = datetime.datetime.strptime(join_date,'%Y-%m-%d %H:%M:%S.%f')
+  diff = datetime.datetime.now() - join
+  days = diff.days
+  return days
+
+
+
 def html_header():
   return '<html><body><div style="width:600px;">\n'
 
@@ -235,7 +257,8 @@ async def stats(channel, author, name):
   message += ('<p style="font-size:40px">' + name + "'s main is: " + (result[5] if not result[5] == "" else "unknown")
              + "\t|\t" + str(result[2]) + " dkp" 
              + "\t|\t" + str(result[3]) + " n "
-             + "\t|\t" + str(result[4]) + " g.\n")
+             + "\t|\t" + str(result[4]) + " g.\n"
+             + "\t|\t" + str(days_since_join(result[6])) + " days.\n")
   message += html_footer()
   await send_html(channel,message)
 
@@ -248,19 +271,19 @@ async def listAcc(client,channel):
       add_account_record(member.id)
   
   results=print_account_records()
-  message = ""
+  message = html_header()
+  message += '<p style="font-size:40px">'
   for result in results:
     if not client.user.id == result[1]:
       user=channel.guild.get_member(result[1])
-      message += (user.display_name + "'s main is: " + (result[5] if not result[5] == "" else "unknown")
-                 + "\t|\t" + str(result[2]) + " dkp" 
-                 + "\t|\t" + str(result[3]) + " n "
-                 + "\t|\t" + str(result[4]) + " g.\n")
+      message += (user.display_name + ":<br>" 
+                 + (result[5] if not result[5] == "" else "unknown")
+                 + "&emsp;" + str(result[2]) + " dkp<br>" 
+                 + "&emsp;" + str(result[3]) + " need rolls<br>"
+                 + "&emsp;" + str(result[4]) + " greed rolls<br>")
   
-  embedMessage = discord.Embed()
-  embedMessage.add_field(name="Ducks", value=message)
-  
-  await channel.send(embed=embedMessage)
+  message += html_footer()
+  await send_html(channel,message)
 
 async def countdown(channel):
   release = datetime.datetime(2019, 8, 26)
@@ -423,6 +446,8 @@ async def parse_command(client,channel,author,name,content):
 token = open(path+"/token", "r").readline()
 print(token)
 client = discord.Client()
+
+add_account_record(1077)
 
 @client.event
 async def on_ready(): #This runs once when connected
