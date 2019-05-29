@@ -4,6 +4,9 @@ import asyncio
 import random
 import os
 import datetime
+import imgkit
+import tempfile
+import io
 from sqlite3 import Error
 
 fpath=os.path.realpath(__file__)
@@ -170,8 +173,23 @@ def set_name(discord_id, name):
   finally:
     conn.close()
 
+def html_header():
+  return '<html><body><div style="width:600px;">\n'
+
+def html_footer():
+  return '</div></body></html>\n'
+
 def random_num():
   return random.randint(0,100)
+
+async def send_html(channel,html):
+  img = imgkit.from_string(html, False)
+  tf = tempfile.NamedTemporaryFile(suffix='.jpg')
+  tf.write(img)
+  tf.flush()
+  await channel.send(file=discord.File(tf.name,"file.jpg"))
+  tf.close()
+
 
 async def commands(channel):
   #make rich embed
@@ -183,6 +201,7 @@ async def commands(channel):
             "!greed - rolls greed from 0-100\n"
             "!list - lists dkp totals of all members\n"
             "!dkp - returns how much dkp you have\n"
+            "!stats - prints your stats sheet\n"
             "!countdown - returns how much time till classic release\n"
             "!setname [name] - set the name of your character for armory lookups and other references\n"
             "!setclass [class] - set your primary class\n"
@@ -209,6 +228,16 @@ async def greed(channel, author, name):
 
 async def dkp(channel, author, name):
   await channel.send(name + " you have " + str(get_dkp(author.id)) + " dkp!")
+
+async def stats(channel, author, name):
+  result = get_account_record(author.id)
+  message = html_header()
+  message += ('<p style="font-size:40px">' + name + "'s main is: " + (result[5] if not result[5] == "" else "unknown")
+             + "\t|\t" + str(result[2]) + " dkp" 
+             + "\t|\t" + str(result[3]) + " n "
+             + "\t|\t" + str(result[4]) + " g.\n")
+  message += html_footer()
+  await send_html(channel,message)
 
 async def listAcc(client,channel):
   #make sure all members are accounted for
@@ -370,6 +399,8 @@ async def parse_command(client,channel,author,name,content):
     await greed(channel, author, name)
   elif operation == "dkp":
     await dkp(channel, author, name)
+  elif operation == "stats":
+    await stats(channel, author, name)
   elif operation == "list":
     await listAcc(client,channel)
   elif operation == "countdown":
