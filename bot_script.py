@@ -68,6 +68,18 @@ def add_account_record(discord_id):
   finally:
     conn.close()
 
+def remove_account_record(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    cur = conn.cursor()
+    cur.execute("DELETE FROM players WHERE discord_id=" + str(discord_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
 def get_account_record(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -419,6 +431,8 @@ async def parse_command(client,channel,author,name,content):
     await hello(channel, name)
   elif operation == "quack":
     await quack(channel, name)
+  elif type(channel) is discord.DMChannel:
+    await channel.send("This command only works within a guild.")
   elif operation == "need":
     await need(channel, author, name)
   elif operation == "greed":
@@ -454,6 +468,28 @@ client = discord.Client()
 async def on_ready(): #This runs once when connected
   print(f'We have logged in as {client.user}')
   await client.change_presence(activity=discord.Game(name="Eat the Bread"))
+
+@client.event
+async def on_member_join(member):
+  print("New user joined: " + member.display_name + str(member.id))
+  add_account_record(member.id)
+  channels = member.guild.channels
+  await member.send("Welcome to the freshest pond in Azeroth, " + member.display_name + "!:duck:\n"
+                    "Type !commands to see my list of commands.\n"
+                    "Make sure to !setclass [classname] in guild chat to set your class and get appropriate coloring!")
+  for channel in channels:
+    if channel.name == "the-inn":
+      await channel.send("Welcome to the freshest pond in Azeroth, " + member.display_name + "!:duck:")
+
+@client.event
+async def on_member_remove(member):
+  print("User Left: " + member.display_name)
+  remove_account_record(member.id)
+  channels = member.guild.channels
+  for channel in channels:
+    if channel.name == "the-inn":
+      await channel.send(member.display_name + " has flown south.")
+
 
 @client.event
 async def on_message(message):
