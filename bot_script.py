@@ -265,13 +265,47 @@ async def dkp(channel, author, name):
 
 async def stats(channel, author, name):
   result = get_account_record(author.id)
-  message = html_header()
-  message += ('<p style="font-size:40px">' + name + "'s main is: " + (result[5] if not result[5] == "" else "unknown")
-             + "\t|\t" + str(result[2]) + " dkp" 
-             + "\t|\t" + str(result[3]) + " n "
-             + "\t|\t" + str(result[4]) + " g.\n"
-             + "\t|\t" + str(days_since_join(result[6])) + " days.\n")
-  message += html_footer()
+  main = (result[5] if not result[5] == "" else "unknown")
+  dkp = str(result[2])
+  need= str(result[3])
+  greed = str(result[4])
+  days = str(days_since_join(result[6]))
+  message =(
+    '<html>'
+    '<body>'
+    
+    '<h1 style="font-size:80px"><center>' + name + '</center></hq>'
+    
+    '<table style="font-size: 50px;" align="center">'
+             '<tr>'
+                 '<th><center>' + main + '</center></th>'
+             '</tr>'
+    '</table>'
+    
+    '<table style="font-size: 50px;" border="30" width="600" height="600" bgcolor="white" align="center">'
+    
+             '<tr>'
+               '<td>DKP</td>'
+               '<td><center>' + dkp + '</center></td>'
+             '</tr>'
+    
+             '<tr>'
+               '<td>Need Rolls</td>'
+               '<td><center>' + need + '</center></td>'
+             '</tr>'
+    
+             '<tr>'
+               '<td>Greed Rolls</td>'
+               '<td><center>' + greed + '</center></td>'
+             '</tr>'
+    
+             '<tr>'
+               '<td>Days</td>'
+               '<td><center>' + days + '</center></td>'
+             '</tr>'
+           '</table>'
+    '</div></body>'
+    '</html>')
   await send_html(channel,message)
 
 async def listAcc(client,channel):
