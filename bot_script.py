@@ -7,6 +7,11 @@ import datetime
 import imgkit
 import tempfile
 import io
+import PIL
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
+import glob
 from sqlite3 import Error
 
 fpath=os.path.realpath(__file__)
@@ -270,43 +275,26 @@ async def stats(channel, author, name):
   need= str(result[3])
   greed = str(result[4])
   days = str(days_since_join(result[6]))
-  message =(
-    '<html>'
-    '<body>'
-    
-    '<h1 style="font-size:80px"><center>' + name + '</center></hq>'
-    
-    '<table style="font-size: 50px;" align="center">'
-             '<tr>'
-                 '<th><center>' + main + '</center></th>'
-             '</tr>'
-    '</table>'
-    
-    '<table style="font-size: 50px;" border="30" width="600" height="600" bgcolor="white" align="center">'
-    
-             '<tr>'
-               '<td>DKP</td>'
-               '<td><center>' + dkp + '</center></td>'
-             '</tr>'
-    
-             '<tr>'
-               '<td>Need Rolls</td>'
-               '<td><center>' + need + '</center></td>'
-             '</tr>'
-    
-             '<tr>'
-               '<td>Greed Rolls</td>'
-               '<td><center>' + greed + '</center></td>'
-             '</tr>'
-    
-             '<tr>'
-               '<td>Days</td>'
-               '<td><center>' + days + '</center></td>'
-             '</tr>'
-           '</table>'
-    '</div></body>'
-    '</html>')
-  await send_html(channel,message)
+  avatar = author.avatar_url_as(static_format='png',size=128)
+  avatarbytes = await avatar.read()
+  avatarImage = Image.open(io.BytesIO(avatarbytes))
+  im = Image.open(path + "/background.png")
+  im.paste(avatarImage,(31,31))
+  font = ImageFont.truetype("/usr/share/fonts/noto/NotoSerifDisplay-Light.ttf", 32)
+  draw = ImageDraw.Draw(im)
+  draw.text((210, 25),name,(0,0,0),font=font)
+  draw.text((240, 60),main,(0,0,0),font=font)
+  draw.text((190, 120),dkp + " dkp",(0,0,0),font=font)
+  draw.text((320, 120),greed,(0,0,0),font=font)
+  draw.text((406, 120),need,(0,0,0),font=font)
+  imgbytes = io.BytesIO()
+  im.save(imgbytes, format='PNG')
+  imgbytes = imgbytes.getvalue()
+  tf = tempfile.NamedTemporaryFile(suffix='.png')
+  tf.write(imgbytes)
+  tf.flush()
+  await channel.send(file=discord.File(tf.name,"file.png"))
+  tf.close()
 
 async def listAcc(client,channel):
   #make sure all members are accounted for
