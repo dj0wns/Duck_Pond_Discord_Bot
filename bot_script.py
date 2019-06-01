@@ -104,7 +104,7 @@ def get_account_record_by_acc_name(account_name):
     conn = sqlite3.connect(DB_FILE)
     if not check_player_table(conn): return None
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE account_name=\"" + account_name + "\"")
+    cur.execute("SELECT * FROM players WHERE account_name=?",(account_name,))
     result = cur.fetchone()
     return result
   except Error as e:
@@ -572,7 +572,7 @@ async def parse_command(client,channel,author,name,content):
     return False
   #remove '!'
   message = content[1:]
-  tokens = message.split(" ")
+  tokens = message.split()
   operation = tokens[0].lower()
   roles = author.roles
   print(operation)
