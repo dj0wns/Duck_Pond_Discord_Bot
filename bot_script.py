@@ -8,6 +8,7 @@ import imgkit
 import tempfile
 import io
 import PIL
+import operator
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -17,6 +18,10 @@ from sqlite3 import Error
 fpath=os.path.realpath(__file__)
 path=os.path.dirname(fpath)
 DB_FILE=path+"/local.db"
+
+auction_mode = False
+auction_item = ""
+auction_dict = {}
 
 def create_table(conn):
   sql_create_players_table = """ CREATE TABLE IF NOT EXISTS players (
@@ -258,12 +263,14 @@ async def commands(channel):
             "!setname [name] - set the name of your character for armory lookups and other references\n"
             "!setclass [class] - set your primary class\n"
             "!classlist - list the number of each class currently in the guild\n"
+            "!bid [amount] - bids an amount of dkp in the current auction - make sure to private message the bot for anonymity\n"
           )
   
   lootmaster=( 
             "These commands only work if you have the \"Loot Master\" role.\n"
             "!adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
             "!adddkp [user]... [amount] - removes amount of dkp from users - uses discord name or char name\n"
+            "!auction [itemname] - starts an auction for [itemname] users my private message RoboDuck to bid\n"
              )
 
   embedMessage = discord.Embed()
@@ -546,8 +553,62 @@ async def removedkp(channel,author,name,tokens,client):
   for d_id in idlist:
     decrement_dkp(d_id,amount)
 
-  await channel.send(amount + " dkp has been removed form given users!")
-    
+  await channel.send(amount + " dkp has been removed from given users!")
+ 
+async def bid(channel,author,name,tokens):
+  global auction_mode
+  global auction_item
+  global auction_dict
+  if not auction_mode:
+    await channel.send("There is no auction currently running.")
+    return False
+  amount = tokens[1]
+  if amount.isdigit() and int(amount) > 0:
+    amount = int(amount)
+  else :
+    await channel.send(amount + " is not a valid amount.")
+    return False
+  #verify user has enough dkp
+  currentdkp = get_dkp(author.id)
+  if amount > currentdkp:
+    await channel.send("You do not have enough dkp to bid " + str(amount) + ". You currently have " + str(currentdkp) + "dkp.")
+    return False
+  auction_dict[author.id] = amount
+  await channel.send("You have successfully bid " + str(amount) + " on " + auction_item + "!")
+  
+
+async def startauction(channel,name,tokens):
+  global auction_mode
+  global auction_item
+  global auction_dict
+  if auction_mode:
+    await channel.send("There is already an auction running for " + auction_item + ". So wait for that to finish before starting another auction")
+    return False
+  sep = " "
+  auction_item = sep.join(tokens[1:])
+  auction_dict = {}
+  auction_mode = True
+  await channel.send("An auction has been started for " + auction_item + "! Send me a private message in the form \"!bid [amount]\" to bid.")
+
+async def endauction(channel,name,client):
+  global auction_mode
+  global auction_item
+  global auction_dict
+  if not auction_mode:
+    await channel.send("There is no auction currently running.")
+    return False
+  auction_mode = False
+  message = ""
+  sorted_dict = sorted(auction_dict.items(), key=operator.itemgetter(1), reverse=True)
+  for uid,dkp in sorted_dict:
+    member = channel.guild.get_member(uid)
+    message += member.display_name + ": " + str(dkp) + "\n"
+  
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Auction for " + auction_item, value=message)
+  await channel.send(embed=embedMessage)
+
+
 
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
@@ -562,7 +623,16 @@ async def parse_loot_master_commands(client,channel,author,name,content,roles,op
     if len(tokens) >= 3:   
       await removedkp(channel,author,name,tokens,client)
     else:
-      await notEnoughArguments(channel,2,"!adddkp")
+      await notEnoughArguments(channel,2,"!removedkp")
+    return True
+  elif operation == "auction":
+    if len(tokens) >= 2:   
+      await startauction(channel,name,tokens)
+    else:
+      await notEnoughArguments(channel,1,"!auction")
+    return True
+  elif operation == "endauction":
+    await endauction(channel,author,client)
     return True
 
   return False
@@ -574,7 +644,6 @@ async def parse_command(client,channel,author,name,content):
   message = content[1:]
   tokens = message.split()
   operation = tokens[0].lower()
-  roles = author.roles
   print(operation)
   if operation == "commands":
     await commands(channel)
@@ -582,6 +651,8 @@ async def parse_command(client,channel,author,name,content):
     await hello(channel, name)
   elif operation == "quack":
     await quack(channel, name)
+  elif operation == "bid":
+    await bid(channel,author,name,tokens)
   elif type(channel) is discord.DMChannel:
     await channel.send("This command only works within a guild.")
   elif operation == "need":
@@ -608,7 +679,7 @@ async def parse_command(client,channel,author,name,content):
       await notEnoughArguments(channel,1,"!setclass")
   elif operation == "classlist":
     await classlist(channel,client)
-  elif await parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
+  elif await parse_loot_master_commands(client,channel,author,name,content,author.roles,operation,tokens):
     None #logic is done in parse
     
   
