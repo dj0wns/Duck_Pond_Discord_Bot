@@ -91,7 +91,20 @@ def get_account_record(discord_id):
     if not check_player_table(conn): return None
     create_account_if_doesnt_exist(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE discord_id=" + str(discord_id))
+    cur.execute("SELECT * FROM players WHERE discord_id=" + str(discord_id) )
+    result = cur.fetchone()
+    return result
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def get_account_record_by_acc_name(account_name):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM players WHERE account_name=\"" + account_name + "\"")
     result = cur.fetchone()
     return result
   except Error as e:
@@ -246,9 +259,16 @@ async def commands(channel):
             "!setclass [class] - set your primary class\n"
             "!classlist - list the number of each class currently in the guild\n"
           )
+  
+  lootmaster=( 
+            "These commands only work if you have the \"Loot Master\" role.\n"
+            "!adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
+            "!adddkp [user]... [amount] - removes amount of dkp from users - uses discord name or char name\n"
+             )
 
   embedMessage = discord.Embed()
-  embedMessage.add_field(name="Commands", value=message)
+  embedMessage.add_field(name="General Commands", value=message)
+  embedMessage.add_field(name="Loot Master", value=lootmaster)
   await channel.send(embed=embedMessage)
 
 async def hello(channel, name):
@@ -439,6 +459,114 @@ async def classlist(channel, client):
 async def notEnoughArguments(channel, argsExpected, commandText):
   await channel.send(commandText + " requires at least " + str(argsExpected) + " argument" + ("s." if argsExpected > 1 else "."))
 
+async def adddkp(channel,author,name,tokens,client):
+  idlist = []
+  amount = tokens[len(tokens)-1]
+  intamount = 0
+  members = list(client.get_all_members())
+  #all but last are users to add dkp to
+  for i in range(1,len(tokens) - 1):
+    found = False
+    currenttoken = tokens[i]
+    if len(currenttoken) == 0:
+      await channel.send("The empty string was found in the place of user " + str(i));
+      return False
+    record = get_account_record_by_acc_name(currenttoken)
+    if record is not None and record:
+      idlist.append(record[1])
+      found = True
+      continue
+    #find member
+    foundMember = None
+    for member in members:
+      if member.display_name == currenttoken:
+        foundMember = member
+        break
+    if foundMember is not None:
+      idlist.append(foundMember.id)
+      found = True
+      continue
+    if not found:
+      await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
+      return False
+  
+  #Check if dkp is a valid number
+  if amount.isdigit() and int(amount) > 0:
+    intamount = int(amount)
+  else :
+    await channel.send(amount + " is not a valid amount.")
+    return False
+
+  #now add that dkp!
+  for d_id in idlist:
+    increment_dkp(d_id,amount)
+
+  await channel.send(amount + " dkp has been added to given users!")
+    
+
+async def removedkp(channel,author,name,tokens,client):
+  idlist = []
+  amount = tokens[len(tokens)-1]
+  intamount = 0
+  members = list(client.get_all_members())
+  #all but last are users to add dkp to
+  for i in range(1,len(tokens) - 1):
+    found = False
+    currenttoken = tokens[i]
+    if len(currenttoken) == 0:
+      await channel.send("The empty string was found in the place of user " + str(i));
+      return False
+    record = get_account_record_by_acc_name(currenttoken)
+    if record is not None and record:
+      idlist.append(record[1])
+      found = True
+      continue
+    #find member
+    foundMember = None
+    for member in members:
+      if member.display_name == currenttoken:
+        foundMember = member
+        break
+    if foundMember is not None:
+      idlist.append(foundMember.id)
+      found = True
+      continue
+    if not found:
+      await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
+      return False
+  
+  #Check if dkp is a valid number
+  if amount.isdigit() and int(amount) > 0:
+    intamount = int(amount)
+  else :
+    await channel.send(amount + " is not a valid amount.")
+    return False
+
+  #now add that dkp!
+  for d_id in idlist:
+    decrement_dkp(d_id,amount)
+
+  await channel.send(amount + " dkp has been removed form given users!")
+    
+
+async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
+  if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
+    return False
+  if operation == "adddkp":
+    if len(tokens) >= 3:   
+      await adddkp(channel,author,name,tokens,client)
+    else:
+      await notEnoughArguments(channel,2,"!adddkp")
+    return True
+  elif operation == "removedkp":
+    if len(tokens) >= 3:   
+      await removedkp(channel,author,name,tokens,client)
+    else:
+      await notEnoughArguments(channel,2,"!adddkp")
+    return True
+
+  return False
+
 async def parse_command(client,channel,author,name,content):
   if not content[0] == '!':
     return False
@@ -446,6 +574,7 @@ async def parse_command(client,channel,author,name,content):
   message = content[1:]
   tokens = message.split(" ")
   operation = tokens[0].lower()
+  roles = author.roles
   print(operation)
   if operation == "commands":
     await commands(channel)
@@ -478,7 +607,9 @@ async def parse_command(client,channel,author,name,content):
     else:
       await notEnoughArguments(channel,1,"!setclass")
   elif operation == "classlist":
-      await classlist(channel,client)
+    await classlist(channel,client)
+  elif await parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
+    None #logic is done in parse
     
   
 
