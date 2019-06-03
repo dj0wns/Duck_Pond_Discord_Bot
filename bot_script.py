@@ -253,6 +253,7 @@ async def commands(channel):
   message=( 
             "!hello - says hello back!\n"
             "!quack - Quacks!\n"
+            "!forthehorde - The alliance will tremble beneath these fearsome warcries!\n"
             "!commands - displays this helpful dialogue\n"
             "!need - rolls need from 0-100\n"
             "!greed - rolls greed from 0-100\n"
@@ -283,6 +284,13 @@ async def hello(channel, name):
 
 async def quack(channel, name):
   await channel.send('Quack!')
+
+async def forthehorde(channel, name):
+  messages = ["For the Horde!",
+              "Lok-tar ogar!",
+              "Quack! Quack! Quaaaaaack!",
+              "Death to the enemies of the Horde!"]
+  await channel.send(random.choice(messages))
 
 async def need(channel, author, name):
   increment_need(author.id)
@@ -651,6 +659,8 @@ async def parse_command(client,channel,author,name,content):
     await hello(channel, name)
   elif operation == "quack":
     await quack(channel, name)
+  elif operation == "forthehorde":
+    await forthehorde(channel, name)
   elif operation == "bid":
     await bid(channel,author,name,tokens)
   elif type(channel) is discord.DMChannel:
