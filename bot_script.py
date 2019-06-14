@@ -261,6 +261,7 @@ async def commands(channel):
             "!dkp - returns how much dkp you have\n"
             "!stats - prints your stats sheet\n"
             "!countdown - returns how much time till classic release\n"
+            "!paladin - asserts your role as a horde paladin\n"
             "!setname [name] - set the name of your character for armory lookups and other references\n"
             "!setclass [class] - set your primary class\n"
             "!classlist - list the number of each class currently in the guild\n"
@@ -302,6 +303,9 @@ async def greed(channel, author, name):
 
 async def dkp(channel, author, name):
   await channel.send(name + " you have " + str(get_dkp(author.id)) + " dkp!")
+
+async def paladin(channel):
+  await channel.send(file=discord.File(path + "/paladin.png","paladin.png"))
 
 async def stats(channel, author, name):
   result = get_account_record(author.id)
@@ -671,6 +675,8 @@ async def parse_command(client,channel,author,name,content):
     await greed(channel, author, name)
   elif operation == "dkp":
     await dkp(channel, author, name)
+  elif operation == "paladin" or operation == "pally":
+    await paladin(channel)
   elif operation == "stats":
     await stats(channel, author, name)
   elif operation == "list":
