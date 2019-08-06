@@ -14,6 +14,7 @@ from PIL import ImageFont
 from PIL import ImageDraw
 import glob
 from sqlite3 import Error
+from open_search import OpenSearch, OpenSearchError, SearchObjectError
 
 fpath=os.path.realpath(__file__)
 path=os.path.dirname(fpath)
@@ -255,6 +256,8 @@ async def commands(channel):
             "!quack - Quacks!\n"
             "!forthehorde - The alliance will tremble beneath these fearsome warcries!\n"
             "!commands - displays this helpful dialogue\n"
+            "!item [itemname] - if exists, returns an infobox detailing the named item\n"
+            "!spell [spellname] - if exists, returns an infobox detailing the named spell\n"
             "!need - rolls need from 0-100\n"
             "!greed - rolls greed from 0-100\n"
             "!list - lists dkp totals of all members\n"
@@ -620,7 +623,29 @@ async def endauction(channel,name,client):
   embedMessage.add_field(name="Auction for " + auction_item, value=message)
   await channel.send(embed=embedMessage)
 
+async def item(channel,tokens):
+  try:
+    div = " "
+    item_name = div.join(tokens[1:])
+    oser = OpenSearch('item', item_name)
+    oser.search_results.get_tooltip_data()
+    image = oser.search_results.image
+    await channel.send(file=discord.File(image))
+    os.remove(image)
+  except (OpenSearchError, SearchObjectError) as e:
+    await channel.send(e)
 
+async def spell(channel,tokens):
+  try:
+    div = " "
+    spell_name = div.join(tokens[1:])
+    oser = OpenSearch('spell', spell_name)
+    oser.search_results.get_tooltip_data()
+    image = oser.search_results.image
+    await channel.send(file=discord.File(image))
+    os.remove(image)
+  except (OpenSearchError, SearchObjectError) as e:
+    await channel.send(e)
 
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
@@ -667,6 +692,10 @@ async def parse_command(client,channel,author,name,content):
     await forthehorde(channel, name)
   elif operation == "bid":
     await bid(channel,author,name,tokens)
+  elif operation == "item":
+    await item(channel,tokens)
+  elif operation == "spell":
+    await spell(channel,tokens)
   elif type(channel) is discord.DMChannel:
     await channel.send("This command only works within a guild.")
   elif operation == "need":
