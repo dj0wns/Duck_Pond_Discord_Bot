@@ -365,10 +365,15 @@ async def listAcc(client,channel):
   await send_html(channel,message)
 
 async def countdown(channel):
-  release = datetime.datetime(2019, 8, 26)
+  release = datetime.datetime(2019, 8, 26, 18)
   current = datetime.datetime.now()
-  togo = release - current
-  await channel.send("There are only " + str(togo.days) + " days until classic is released!")
+  if release > current:
+    togo = release - current
+    await channel.send("There are only " + str(togo.days) + " days and " + str(togo.seconds//3600) + " hours until WoW Classic is released!")
+  else:
+    togo = current - release
+    await channel.send("WoW Classic was released  " + str(togo.days) + " days and " + str(togo.seconds//3600) + " hours ago! Lok'tar Ogar!")
+    
 
 async def setname(channel, author, name, accname):
   set_name(author.id,accname)
@@ -696,6 +701,15 @@ async def parse_command(client,channel,author,name,content):
     await item(channel,tokens)
   elif operation == "spell":
     await spell(channel,tokens)
+  elif operation == "paladin" or operation == "pally":
+    await paladin(channel)
+  elif operation == "stats":
+    await stats(channel, author, name)
+  elif operation == "setname":
+    if len(tokens) >= 2:   
+      await setname(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!setname")
   elif type(channel) is discord.DMChannel:
     await channel.send("This command only works within a guild.")
   elif operation == "need":
@@ -704,19 +718,10 @@ async def parse_command(client,channel,author,name,content):
     await greed(channel, author, name)
   elif operation == "dkp":
     await dkp(channel, author, name)
-  elif operation == "paladin" or operation == "pally":
-    await paladin(channel)
-  elif operation == "stats":
-    await stats(channel, author, name)
   elif operation == "list":
     await listAcc(client,channel)
   elif operation == "countdown":
     await countdown(channel)
-  elif operation == "setname":
-    if len(tokens) >= 2:   
-      await setname(channel,author,name,tokens[1])
-    else:
-      await notEnoughArguments(channel,1,"!setname")
   elif operation == "setclass":
     if len(tokens) >= 2:   
       await setclass(channel,author,name,tokens[1],client)
