@@ -80,7 +80,7 @@ def create_account_if_doesnt_exist(conn, discord_id):
 
 def create_player(conn, discord_id):
   sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name,join_date,prof1,prof2)
-           VALUES(?,?,?,?,?,?)  '''
+           VALUES(?,?,?,?,?,?,?,?)  '''
   to_insert = (discord_id,0,0,0,"",str(datetime.datetime.now()),0,0)
   try:
     cur = conn.cursor()
