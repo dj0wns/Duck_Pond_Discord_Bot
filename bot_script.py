@@ -24,6 +24,34 @@ auction_mode = False
 auction_item = ""
 auction_dict = {}
 
+prof_map = {
+  'none' : 0,
+  'alchemy' : 1,
+  'blacksmithing' : 2,
+  'enchanting' : 3,
+  'engineering' : 4,
+  'herbalism' : 5,
+  'leatherworking' : 6,
+  'mining' : 7,
+  'skinning' : 8,
+  'tailoring' : 9
+}
+
+#inverse and with correct caps
+inv_prof_map = {
+  0 : 'None',
+  1 : 'Alchemy',
+  2 : 'Blacksmithing',
+  3 : 'Enchanting',
+  4 : 'Engineering',
+  5 : 'Herbalism',
+  6 : 'Leatherworking',
+  7 : 'Mining',
+  8 : 'Skinning',
+  9 : 'Tailoring'
+}
+
+
 def create_table(conn):
   sql_create_players_table = """ CREATE TABLE IF NOT EXISTS players (
                                     id integer PRIMARY KEY,
@@ -32,7 +60,9 @@ def create_table(conn):
                                     need_rolls integer,
                                     greed_rolls integer,
                                     account_name text,
-                                    join_date datetime
+                                    join_date datetime,
+                                    prof1 integer,
+                                    prof2 integer
                                 ); """
   try:
     c = conn.cursor()
@@ -49,9 +79,9 @@ def create_account_if_doesnt_exist(conn, discord_id):
 
 
 def create_player(conn, discord_id):
-  sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name,join_date)
+  sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name,join_date,prof1,prof2)
            VALUES(?,?,?,?,?,?)  '''
-  to_insert = (discord_id,0,0,0,"",str(datetime.datetime.now()))
+  to_insert = (discord_id,0,0,0,"",str(datetime.datetime.now()),0,0)
   try:
     cur = conn.cursor()
     cur.execute(sql, to_insert)
@@ -210,6 +240,64 @@ def set_name(discord_id, name):
   finally:
     conn.close()
 
+def set_prof1(discord_id, profID):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    #the parens sanitize input i guess
+    cur.execute("UPDATE players SET prof1=? WHERE discord_id=" + str(discord_id), (profID,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def set_prof2(discord_id, profID):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    #the parens sanitize input i guess
+    cur.execute("UPDATE players SET prof2=? WHERE discord_id=" + str(discord_id), (profID,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def get_prof1(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    #the parens sanitize input i guess
+    cur.execute("SELECT prof1 FROM players WHERE discord_id=" + str(discord_id))
+    conn.commit()
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+def get_prof2(discord_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    if not check_player_table(conn): return None
+    create_account_if_doesnt_exist(conn, discord_id)
+    cur = conn.cursor()
+    #the parens sanitize input i guess
+    cur.execute("SELECT prof2 FROM players WHERE discord_id=" + str(discord_id))
+    conn.commit()
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
 def get_join_date(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -262,15 +350,23 @@ async def commands(channel):
             "!greed - rolls greed from 0-100\n"
             "!list - lists dkp totals of all members\n"
             "!dkp - returns how much dkp you have\n"
-            "!stats - prints your stats sheet\n"
             "!countdown - returns how much time till classic release\n"
             "!paladin - asserts your role as a horde paladin\n"
-            "!setname [name] - set the name of your character for armory lookups and other references\n"
-            "!setclass [class] - set your primary class\n"
             "!classlist - list the number of each class currently in the guild\n"
             "!bid [amount] - bids an amount of dkp in the current auction - make sure to private message the bot for anonymity\n"
           )
-  
+  character=(
+            "These commands modify or display information about your character\n"
+            "!setprof1 [profession]- sets your first profession or none for no profession\n"
+            "!setprof2 [profession]- sets your second profession or none for no profession\n"
+            "!getprofs - Lists your currently chosen professions\n"
+            "!addrole [heal,dps,tank] - Adds a role you plan on playing and being geared for\n"
+            "!removerole [heal,dps,tank] - Removes a role from your character\n"
+            "!setname [name] - set the name of your character for armory lookups and other references\n"
+            "!setclass [class] - set your primary class\n"
+            "!stats - prints your stats sheet\n"
+
+          )
   lootmaster=( 
             "These commands only work if you have the \"Loot Master\" role.\n"
             "!adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
@@ -280,6 +376,7 @@ async def commands(channel):
 
   embedMessage = discord.Embed()
   embedMessage.add_field(name="General Commands", value=message)
+  embedMessage.add_field(name="Character Commands", value=character)
   embedMessage.add_field(name="Loot Master", value=lootmaster)
   await channel.send(embed=embedMessage)
 
@@ -652,6 +749,69 @@ async def spell(channel,tokens):
   except (OpenSearchError, SearchObjectError) as e:
     await channel.send(e)
 
+async def setprof1(channel, author, name, prof):
+  prof = prof.lower()
+  if prof_map.get(prof) is None:
+    await channel.send(prof + " is not a valid profession name.")
+  else:
+    prof1 = prof_map.get(prof)
+    set_prof1(author.id,prof1)
+    await channel.send(name + " has added " + prof + " as prof1.")
+
+async def setprof2(channel, author, name, prof):
+  prof = prof.lower()
+  if prof_map.get(prof) is None:
+    await channel.send(prof + " is not a valid profession name.")
+  else:
+    prof2 = prof_map.get(prof)
+    set_prof2(author.id,prof2)
+    await channel.send(name + " has added " + prof + " as prof2.")
+
+async def getprofs(channel, author, name):
+  prof1 = "None"
+  prof1_temp = get_prof1(author.id)
+  prof2 = "None"
+  prof2_temp = get_prof2(author.id)
+  if not prof1_temp is None:
+    if inv_prof_map.get(prof1_temp) is None:
+      prof1 = "None"
+    else:
+      prof1 = inv_prof_map.get(prof1_temp)
+  if not prof2_temp is None:
+    if inv_prof_map.get(prof2_temp) is None:
+      prof2 = "None"
+    else:
+      prof2 = inv_prof_map.get(prof2_temp)
+  await channel.send(name + " has the following profs: " + prof1 + " and " + prof2)
+
+async def addrole(channel, author, name, role):
+  role = role.lower()
+  if role == "dps":
+    await author.add_roles(discord.utils.get(channel.guild.roles, name="DPS")) 
+    await channel.send(name + " is now a " + role + "!")
+  elif role == "heal" or role == "healer":
+    await author.add_roles(discord.utils.get(channel.guild.roles, name="HEALER")) 
+    await channel.send(name + " is now a " + role + "!")
+  elif role == "tank":
+    await author.add_roles(discord.utils.get(channel.guild.roles, name="TANK")) 
+    await channel.send(name + " is now a " + role + "!")
+  else:
+    await channel.send(role + " is not a valid role!")
+
+async def removerole(channel, author, name, role):
+  role = role.lower()
+  if role == "dps":
+    await author.remove_roles(discord.utils.get(channel.guild.roles, name="DPS")) 
+    await channel.send(name + " is no longer a " + role + "!")
+  elif role == "heal" or role == "healer":
+    await author.remove_roles(discord.utils.get(channel.guild.roles, name="HEALER")) 
+    await channel.send(name + " is no longer a " + role + "!")
+  elif role == "tank":
+    await author.remove_roles(discord.utils.get(channel.guild.roles, name="TANK")) 
+    await channel.send(name + " is no longer a " + role + "!")
+  else:
+    await channel.send(role + " is not a valid role!")
+
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
     return False
@@ -710,6 +870,28 @@ async def parse_command(client,channel,author,name,content):
       await setname(channel,author,name,tokens[1])
     else:
       await notEnoughArguments(channel,1,"!setname")
+  elif operation == "setprof1":
+    if len(tokens) == 2:   
+      await setprof1(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!setprof1")
+  elif operation == "setprof2":
+    if len(tokens) == 2:   
+      await setprof2(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!setprof2")
+  elif operation == "getprofs":
+    await getprofs(channel, author, name)
+  elif operation == "addrole":
+    if len(tokens) == 2:   
+      await addrole(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!addrole")
+  elif operation == "removerole":
+    if len(tokens) == 2:   
+      await removerole(channel,author,name,tokens[1])
+    else:
+      await notEnoughArguments(channel,1,"!removerole")
   elif type(channel) is discord.DMChannel:
     await channel.send("This command only works within a guild.")
   elif operation == "need":
