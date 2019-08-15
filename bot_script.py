@@ -365,6 +365,7 @@ async def commands(channel):
             "!setname [name] - set the name of your character for armory lookups and other references\n"
             "!setclass [class] - set your primary class\n"
             "!stats - prints your stats sheet\n"
+            "!days - prints how many days you have been a member of the guild\n"
 
           )
   lootmaster=( 
@@ -812,6 +813,10 @@ async def removerole(channel, author, name, role):
   else:
     await channel.send(role + " is not a valid role!")
 
+async def days(channel, author, name):
+  days = str(days_since_join(get_join_date(author.id)))
+  await channel.send(name + " has been a member of the guild for " + days + " days!")
+
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
     return False
@@ -865,6 +870,8 @@ async def parse_command(client,channel,author,name,content):
     await paladin(channel)
   elif operation == "stats":
     await stats(channel, author, name)
+  elif operation == "days":
+    await days(channel, author, name)
   elif operation == "setname":
     if len(tokens) >= 2:   
       await setname(channel,author,name,tokens[1])
