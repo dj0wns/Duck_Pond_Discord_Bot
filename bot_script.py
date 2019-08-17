@@ -1,4 +1,3 @@
-import sqlite3
 import discord
 import asyncio
 import random
@@ -13,8 +12,9 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 import glob
-from sqlite3 import Error
+
 from open_search import OpenSearch, OpenSearchError, SearchObjectError
+import sqldb
 
 fpath=os.path.realpath(__file__)
 path=os.path.dirname(fpath)
@@ -50,274 +50,11 @@ inv_prof_map = {
   8 : 'Skinning',
   9 : 'Tailoring'
 }
-
-
-def create_table(conn):
-  sql_create_players_table = """ CREATE TABLE IF NOT EXISTS players (
-                                    id integer PRIMARY KEY,
-                                    discord_id integer NOT NULL,
-                                    dkp integer,
-                                    need_rolls integer,
-                                    greed_rolls integer,
-                                    account_name text,
-                                    join_date datetime,
-                                    prof1 integer,
-                                    prof2 integer
-                                ); """
-  try:
-    c = conn.cursor()
-    c.execute(sql_create_players_table)
-  except Error as e:
-    print(e)
-
-def create_account_if_doesnt_exist(conn, discord_id):
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE discord_id=" + str(discord_id))
-    #if element doesnt exist create it
-    if cur.fetchone() == None:
-      create_player(conn, discord_id)
-
-
-def create_player(conn, discord_id):
-  sql = '''INSERT INTO players(discord_id,dkp,need_rolls,greed_rolls,account_name,join_date,prof1,prof2)
-           VALUES(?,?,?,?,?,?,?,?)  '''
-  to_insert = (discord_id,0,0,0,"",str(datetime.datetime.now()),0,0)
-  try:
-    cur = conn.cursor()
-    cur.execute(sql, to_insert)
-    conn.commit()
-    #else do nothing
-  except Error as e:
-    print(e)
-
-def check_player_table(conn):
-  if conn is not None:
-    create_table(conn)
-    return True
-  else:
-    print("Error, database connection is null")
-    return False
-
-
-def add_account_record(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def remove_account_record(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    cur = conn.cursor()
-    cur.execute("DELETE FROM players WHERE discord_id=" + str(discord_id))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_account_record(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE discord_id=" + str(discord_id) )
-    result = cur.fetchone()
-    return result
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_account_record_by_acc_name(account_name):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE account_name=?",(account_name,))
-    result = cur.fetchone()
-    return result
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def print_account_records():
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM players")
-    results = cur.fetchall()
-    return results
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def increment_dkp(discord_id, amount):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("UPDATE players SET dkp = dkp + " + str(amount) + " WHERE discord_id=" + str(discord_id))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def decrement_dkp(discord_id, amount):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("UPDATE players SET dkp = MAX(dkp - " + str(amount) + " , 0) WHERE discord_id=" + str(discord_id))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_dkp(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("SELECT dkp FROM players WHERE discord_id=" + str(discord_id))
-    return cur.fetchone()[0]
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def increment_need(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("UPDATE players SET need_rolls = need_rolls + 1 WHERE discord_id=" + str(discord_id))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def increment_greed(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("UPDATE players SET greed_rolls = greed_rolls + 1 WHERE discord_id=" + str(discord_id))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def set_name(discord_id, name):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    #the parens sanitize input i guess
-    cur.execute("UPDATE players SET account_name=? WHERE discord_id=" + str(discord_id), (name,))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def set_prof1(discord_id, profID):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof1=? WHERE discord_id=" + str(discord_id), (profID,))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def set_prof2(discord_id, profID):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof2=? WHERE discord_id=" + str(discord_id), (profID,))
-    conn.commit()
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_prof1(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    #the parens sanitize input i guess
-    cur.execute("SELECT prof1 FROM players WHERE discord_id=" + str(discord_id))
-    conn.commit()
-    return cur.fetchone()[0]
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_prof2(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    #the parens sanitize input i guess
-    cur.execute("SELECT prof2 FROM players WHERE discord_id=" + str(discord_id))
-    conn.commit()
-    return cur.fetchone()[0]
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
-def get_join_date(discord_id):
-  try:
-    conn = sqlite3.connect(DB_FILE)
-    if not check_player_table(conn): return None
-    create_account_if_doesnt_exist(conn, discord_id)
-    cur = conn.cursor()
-    cur.execute("SELECT join_date FROM players WHERE discord_id=" + str(discord_id))
-    return cur.fetchone()[0]
-  except Error as e:
-    print(e)
-  finally:
-    conn.close()
-
 def days_since_join(join_date):
   join = datetime.datetime.strptime(join_date,'%Y-%m-%d %H:%M:%S.%f')
   diff = datetime.datetime.now() - join
   days = diff.days
   return days
-
-
 
 def html_header():
   return '<html><body><div style="width:600px;">\n'
@@ -395,11 +132,11 @@ async def forthehorde(channel, name):
   await channel.send(random.choice(messages))
 
 async def need(channel, author, name):
-  increment_need(author.id)
+  sqldb.increment_need(author.id)
   await channel.send(name + " need rolled a " + str(random_num()) + "!")
 
 async def greed(channel, author, name):
-  increment_greed(author.id)
+  sqldb.increment_greed(author.id)
   await channel.send(name + " greed rolled a " + str(random_num()) + "!")
 
 async def dkp(channel, author, name):
@@ -409,7 +146,7 @@ async def paladin(channel):
   await channel.send(file=discord.File(path + "/paladin.png","paladin.png"))
 
 async def stats(channel, author, name):
-  result = get_account_record(author.id)
+  result = sqldb.get_account_record(author.id)
   main = (result[5] if not result[5] == "" else "unknown")
   dkp = str(result[2])
   need= str(result[3])
@@ -442,9 +179,9 @@ async def listAcc(client,channel):
   for member in members:
     #dont add self
     if not client.user.id == member.id:
-      add_account_record(member.id)
+      sqldb.add_account_record(member.id)
   
-  results=print_account_records()
+  results=sqldb.print_account_records()
   if results == None: return
   message = html_header()
   message += '<p style="font-size:40px">'
@@ -474,7 +211,7 @@ async def countdown(channel):
     
 
 async def setname(channel, author, name, accname):
-  set_name(author.id,accname)
+  sqldb.set_name(author.id,accname)
   await channel.send(name + "'s character name is now: " + accname)
 
 async def setclass(channel, author, name, classname, client):
@@ -596,7 +333,7 @@ async def adddkp(channel,author,name,tokens,client):
     if len(currenttoken) == 0:
       await channel.send("The empty string was found in the place of user " + str(i));
       return False
-    record = get_account_record_by_acc_name(currenttoken)
+    record = sqldb.get_account_record_by_acc_name(currenttoken)
     if record is not None and record:
       idlist.append(record[1])
       found = True
@@ -624,7 +361,7 @@ async def adddkp(channel,author,name,tokens,client):
 
   #now add that dkp!
   for d_id in idlist:
-    increment_dkp(d_id,amount)
+    sqldb.increment_dkp(d_id,amount)
 
   await channel.send(amount + " dkp has been added to given users!")
     
@@ -641,7 +378,7 @@ async def removedkp(channel,author,name,tokens,client):
     if len(currenttoken) == 0:
       await channel.send("The empty string was found in the place of user " + str(i));
       return False
-    record = get_account_record_by_acc_name(currenttoken)
+    record = sqldb.get_account_record_by_acc_name(currenttoken)
     if record is not None and record:
       idlist.append(record[1])
       found = True
@@ -667,9 +404,9 @@ async def removedkp(channel,author,name,tokens,client):
     await channel.send(amount + " is not a valid amount.")
     return False
 
-  #now add that dkp!
+  #now decremetn that dkp!
   for d_id in idlist:
-    decrement_dkp(d_id,amount)
+    sqldb.decrement_dkp(d_id,amount)
 
   await channel.send(amount + " dkp has been removed from given users!")
  
@@ -687,7 +424,7 @@ async def bid(channel,author,name,tokens):
     await channel.send(amount + " is not a valid amount.")
     return False
   #verify user has enough dkp
-  currentdkp = get_dkp(author.id)
+  currentdkp = sqldb.get_dkp(author.id)
   if amount > currentdkp:
     await channel.send("You do not have enough dkp to bid " + str(amount) + ". You currently have " + str(currentdkp) + "dkp.")
     return False
@@ -756,7 +493,7 @@ async def setprof1(channel, author, name, prof):
     await channel.send(prof + " is not a valid profession name.")
   else:
     prof1 = prof_map.get(prof)
-    set_prof1(author.id,prof1)
+    sqldb.set_prof1(author.id,prof1)
     await channel.send(name + " has added " + prof + " as prof1.")
 
 async def setprof2(channel, author, name, prof):
@@ -765,14 +502,14 @@ async def setprof2(channel, author, name, prof):
     await channel.send(prof + " is not a valid profession name.")
   else:
     prof2 = prof_map.get(prof)
-    set_prof2(author.id,prof2)
+    sqldb.set_prof2(author.id,prof2)
     await channel.send(name + " has added " + prof + " as prof2.")
 
 async def getprofs(channel, author, name):
   prof1 = "None"
-  prof1_temp = get_prof1(author.id)
+  prof1_temp = sqldb.get_prof1(author.id)
   prof2 = "None"
-  prof2_temp = get_prof2(author.id)
+  prof2_temp = sqldb.get_prof2(author.id)
   if not prof1_temp is None:
     if inv_prof_map.get(prof1_temp) is None:
       prof1 = "None"
@@ -923,6 +660,9 @@ async def parse_command(client,channel,author,name,content):
     
   
 
+
+#verify tables exist
+sqldb.check_player_table()
 token = open(path+"/token", "r").readline()
 print(token)
 client = discord.Client()
