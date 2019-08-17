@@ -90,7 +90,7 @@ def create_player(conn, discord_id):
   except Error as e:
     print(e)
 
-def check_player_table(conn):
+def check_player_table():
   conn = sqlite3.connect(DB_FILE)
   create_table(conn)
   return True

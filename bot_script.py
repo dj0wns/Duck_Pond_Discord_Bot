@@ -175,12 +175,6 @@ async def stats(channel, author, name):
 
 async def listAcc(client,channel):
   #make sure all members are accounted for
-  members=client.get_all_members()
-  for member in members:
-    #dont add self
-    if not client.user.id == member.id:
-      sqldb.add_account_record(member.id)
-  
   results=sqldb.print_account_records()
   if results == None: return
   message = html_header()
@@ -188,6 +182,7 @@ async def listAcc(client,channel):
   for result in results:
     if not client.user.id == result[1]:
       user=channel.guild.get_member(result[1])
+      #if user isnt in discord
       if user == None:
         continue
       message += (user.display_name + ":<br>" 
