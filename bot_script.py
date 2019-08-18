@@ -168,7 +168,7 @@ async def paladin(channel):
   await channel.send(file=discord.File(path + "/paladin.png","paladin.png"))
 
 async def stats(channel, author, name):
-  result = sqldb.get_account_record(author.id)
+  result = sqldb.get_player(author.id)
   main = (result[5] if not result[5] == "" else "unknown")
   dkp = str(result[2])
   need= str(result[3])
@@ -350,7 +350,7 @@ async def adddkp(channel,author,name,tokens,client):
     if len(currenttoken) == 0:
       await channel.send("The empty string was found in the place of user " + str(i));
       return False
-    record = sqldb.get_account_record_by_acc_name(currenttoken)
+    record = sqldb.get_player_by_char_name(currenttoken)
     if record is not None and record:
       idlist.append(record[1])
       found = True
@@ -395,7 +395,7 @@ async def removedkp(channel,author,name,tokens,client):
     if len(currenttoken) == 0:
       await channel.send("The empty string was found in the place of user " + str(i));
       return False
-    record = sqldb.get_account_record_by_acc_name(currenttoken)
+    record = sqldb.get_player_by_char_name(currenttoken)
     if record is not None and record:
       idlist.append(record[1])
       found = True
@@ -866,7 +866,7 @@ async def parse_command(client,channel,author,name,content):
 
 
 #verify tables exist
-sqldb.check_player_table()
+sqldb.init_db()
 token = open(path+"/token", "r").readline()
 print(token)
 client = discord.Client()
@@ -879,7 +879,7 @@ async def on_ready(): #This runs once when connected
 @client.event
 async def on_member_join(member):
   print("New user joined: " + member.display_name + str(member.id))
-  add_account_record(member.id)
+  add_player(member.id)
   channels = member.guild.channels
   await member.send("Welcome to the freshest pond in Azeroth, " + member.display_name + "!:duck:\n"
                     "Type !commands to see my list of commands.\n"
@@ -891,7 +891,7 @@ async def on_member_join(member):
 @client.event
 async def on_member_remove(member):
   print("User Left: " + member.display_name)
-  remove_account_record(member.id)
+  set_status_abandoned(member.id)
   channels = member.guild.channels
   for channel in channels:
     if channel.name == "the-inn":
