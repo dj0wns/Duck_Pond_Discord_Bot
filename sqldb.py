@@ -57,7 +57,35 @@ def init_db():
                             CONSTRAINT fk_prof1 FOREIGN KEY(prof1) REFERENCES professions(id) ON DELETE SET DEFAULT,
                             CONSTRAINT fk_prof2 FOREIGN KEY(prof2) REFERENCES professions(id) ON DELETE SET DEFAULT
                           ) WITHOUT ROWID; """)
-
+  sql_commands.append(""" CREATE TABLE IF NOT EXISTS events (
+                            id integer NOT NULL PRIMARY KEY,
+                            name text NOT NULL,
+                            description text NOT NULL,
+                            start_time datetime NOT NULL,
+                            end_time datetime NOT NULL,
+                            type text CHECK(type in("casual", "raid", "pvp", "pve", "tournament")),
+                            min_dkp_awarded integer NOT NULL CHECK(min_dkp_awarded >= 0),
+                            total_dkp_spent integer NOT NULL DEFAULT 0 CHECK(total_dkp_spent >= 0),
+                            has_started boolean NOT NULL DEFAULT FALSE,
+                            has_finished boolean NOT NULL DEFAULT FALSE
+                          ); """)
+  sql_commands.append(""" CREATE TABLE IF NOT EXISTS attendance (
+                            id integer NOT NULL PRIMARY KEY,
+                            event integer NOT NULL,
+                            player integer NOT NULL,
+                            attended boolean NOT NULL DEFAULT TRUE,
+                            CONSTRAINT fk_event FOREIGN KEY(event) REFERENCES events(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_event FOREIGN KEY(player) REFERENCES players(discord_id) ON DELETE CASCADE,
+                            UNIQUE(event, player)
+                          ); """)
+  sql_commands.append(""" CREATE TABLE IF NOT EXISTS blacklist (
+                            id integer NOT NULL PRIMARY KEY,
+                            player integer NOT NULL,
+                            blacklisted_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            blacklisted_until datetime NOT NULL,
+                            offense text NOT NULL,
+                            CONSTRAINT fk_player FOREIGN KEY(player) REFERENCES players(discord_id) ON DELETE CASCADE
+                          ); """)
   try:
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
