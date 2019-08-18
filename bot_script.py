@@ -77,45 +77,67 @@ async def send_html(channel,html):
 async def commands(channel):
   #make rich embed
   message=( 
-            "!hello - says hello back!\n"
-            "!quack - Quacks!\n"
-            "!forthehorde - The alliance will tremble beneath these fearsome warcries!\n"
-            "!commands - displays this helpful dialogue\n"
-            "!item [itemname] - if exists, returns an infobox detailing the named item\n"
-            "!spell [spellname] - if exists, returns an infobox detailing the named spell\n"
-            "!need - rolls need from 0-100\n"
-            "!greed - rolls greed from 0-100\n"
-            "!list - lists dkp totals of all members\n"
-            "!dkp - returns how much dkp you have\n"
-            "!countdown - returns how much time till classic release\n"
-            "!paladin - asserts your role as a horde paladin\n"
-            "!classlist - list the number of each class currently in the guild\n"
-            "!bid [amount] - bids an amount of dkp in the current auction - make sure to private message the bot for anonymity\n"
+            " - !hello - says hello back!\n"
+            " - !quack - Quacks!\n"
+            " - !forthehorde - The alliance will tremble beneath these fearsome warcries!\n"
+            " - !commands - displays this helpful dialogue\n"
+            " - !item [itemname] - if exists, returns an infobox detailing the named item\n"
+            " - !spell [spellname] - if exists, returns an infobox detailing the named spell\n"
+            " - !need - rolls need from 0-100\n"
+            " - !greed - rolls greed from 0-100\n"
+            " - !list - lists dkp totals of all members\n"
+            " - !dkp - returns how much dkp you have\n"
+            " - !countdown - returns how much time till classic release\n"
+            " - !paladin - asserts your role as a horde paladin\n"
+            " - !classlist - list the number of each class currently in the guild\n"
+            " - !events - list all running and upcoming events\n"
+            " - !blacklist - list current offense on the blacklist\n"
           )
+  events=(
+          "These commands are to be used during events:\n"
+          " - !checkin - check in to the current running event\n"
+          " - !bid [amount] - bids an amount of dkp in the current auction - make sure to private message the bot for anonymity\n"
+        )
   character=(
-            "These commands modify or display information about your character\n"
-            "!setprof1 [profession]- sets your first profession or none for no profession\n"
-            "!setprof2 [profession]- sets your second profession or none for no profession\n"
-            "!getprofs - Lists your currently chosen professions\n"
-            "!addrole [heal,dps,tank] - Adds a role you plan on playing and being geared for\n"
-            "!removerole [heal,dps,tank] - Removes a role from your character\n"
-            "!setname [name] - set the name of your character for armory lookups and other references\n"
-            "!setclass [class] - set your primary class\n"
-            "!stats - prints your stats sheet\n"
-            "!days - prints how many days you have been a member of the guild\n"
+            "These commands modify or display information about your character:\n"
+            " - !setprof1 [profession]- sets your first profession or none for no profession\n"
+            " - !setprof2 [profession]- sets your second profession or none for no profession\n"
+            " - !getprofs - Lists your currently chosen professions\n"
+            " - !addrole [heal,dps,tank] - Adds a role you plan on playing and being geared for\n"
+            " - !removerole [heal,dps,tank] - Removes a role from your character\n"
+            " - !setname [name] - set the name of your character for armory lookups and other references\n"
+            " - !setclass [class] - set your primary class\n"
+            " - !stats - prints your stats sheet\n"
+            " - !days - prints how many days you have been a member of the guild\n"
 
           )
   lootmaster=( 
-            "These commands only work if you have the \"Loot Master\" role.\n"
-            "!adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
-            "!adddkp [user]... [amount] - removes amount of dkp from users - uses discord name or char name\n"
-            "!auction [itemname] - starts an auction for [itemname] users my private message RoboDuck to bid\n"
-             )
+            "These commands only work if you have the \"Loot Master\" role:\n"
+            " - !createevent [start time (Y-M-D-H:M) in EST time] [duration in hours] [type (casual, raid, pvp, pve, tournament)] [Min DKP Award] [name] [Description]\n"
+            " - !removeevent [eventid] - Remove an event from the table\n"
+            " - !startevent [eventid] - Start an event early, and end any other events currently running\n"
+            " - !endevent - End the currently running event and distribute dkp\n"
+            " - !adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
+            " - !spenddkp [user] [amount] - spend a users dkp for winning an auction - for keeping track of expenditures for null-value\n"
+            " - !unspenddkp [user] [amount] - revert a mistake dkp spend for an auction\n"
+            " - !removedkp [user]... [amount] - removes amount of dkp from users in the event of fixing or punishment - uses discord name or char name\n"
+            " - !auction [itemname] - starts an auction for [itemname] users my private message RoboDuck to bid\n"
+            )
+  moderation=(
+            "These commands are for moderating players - Officers only:\n"
+            " - !didnotshow [eventid] [name] - note that a checked in player did not show so they dont get points\n"
+            " - !forcecheckin [name] - force check in a player if they are on the blacklist\n"
+            " - !addblacklist [user] [days] [offense description] - Add a player to the blacklist to prevent them from checking into events and earning dkp\n"
+            " - !removeblacklist [blacklist id] - Revmove an offense from the blacklist\n"
+            " - !fullblacklist - Lists as much of the history of the blacklist as possible\n"
+            )
 
   embedMessage = discord.Embed()
   embedMessage.add_field(name="General Commands", value=message)
+  embedMessage.add_field(name="Event Commands", value=events)
   embedMessage.add_field(name="Character Commands", value=character)
-  embedMessage.add_field(name="Loot Master", value=lootmaster)
+  embedMessage.add_field(name="Loot Master Commands", value=lootmaster)
+  embedMessage.add_field(name="Moderation Commands", value=moderation)
   await channel.send(embed=embedMessage)
 
 async def hello(channel, name):
@@ -140,7 +162,7 @@ async def greed(channel, author, name):
   await channel.send(name + " greed rolled a " + str(random_num()) + "!")
 
 async def dkp(channel, author, name):
-  await channel.send(name + " you have " + str(get_dkp(author.id)) + " dkp!")
+  await channel.send(name + " you have " + str(sqldb.get_dkp(author.id)) + " dkp!")
 
 async def paladin(channel):
   await channel.send(file=discord.File(path + "/paladin.png","paladin.png"))
@@ -549,6 +571,125 @@ async def days(channel, author, name):
   days = str(days_since_join(get_join_date(author.id)))
   await channel.send(name + " has been a member of the guild for " + days + " days!")
 
+async def createevent(channel, tokens):
+  start_time = None
+  try:
+    start_time = datetime.datetime.strptime(tokens[1], "%m/%d/%y-%H:%M")
+  except ValueError:
+    await channel.send(tokens[1] + " is not a valid date in the format \"%m/%d/%y-%H:%M\" - 05/28/99-16:40.")
+    return
+  duration = None
+  if tokens[2].isdigit():
+    duration = int(tokens[2])
+  else: 
+    await channel.send(tokens[2] + " is not a valid duration.")
+    return
+  event_type = tokens[3].lower()
+  valid_types = ["casual", "raid", "pvp", "pve", "tournament"]
+  if not event_type in valid_types:
+    await channel.send(tokens[3] + " is not a valid type, the types are: ", str(valid_types))
+    return
+  dkp_amount = None
+  if tokens[4].isdigit():
+    dkp_amount = int(tokens[4])
+  else: 
+    await channel.send(tokens[4] + " is not a valid dkp amount")
+    return
+  
+  name = tokens[5]
+  description = " ".join(tokens[6:])
+
+  #TODO add to database
+  
+  await channel.send("The event of type, " + event_type + ", named: " + name + ", " + description
+      + " has been created to occur on " + str(start_time)
+      + " and will run for " + str(duration) + " hours. Attendants will be awarded "
+      + str(dkp_amount) + " dkp.")
+
+async def removeevent(channel, tokens):
+  event_id = None
+  if tokens[1].isdigit():
+    event_id = int(tokens[1])
+  else: 
+    await channel.send(str(tokens[1]) + " is not a valid id.")
+    return
+
+  #TODO add database hook
+  await channel.send("The event with the id: " + str(event_id) + " has been removed.")
+
+async def checkin(channel, author, name):
+  #TODO logic
+  title = "None"
+  await channel.send(name + " has checked into the event titled: " + title)
+
+async def forcecheckin(channel, author, tokens):
+  #TODO logic
+  player_id = tokens[1]
+  discord_name = "N/A"
+  title = "None"
+  await channel.send(discord_name + " has been checked into the event titled: " + title)
+
+async def didnotshow(channel, author, tokens):
+  #TODO logic
+  event_id = tokens[1]
+  player_id = tokens[2]
+  discord_name = "N/A"
+  title = "None"
+  await channel.send(discord_name + " has been removed from the event titled: " + title)
+
+
+async def spenddkp(channel,author,name,tokens,client):
+  await removedkp(channel,author,name,tokens,client)
+  amount = 4999
+  #TODO also add dkp from event pool
+  await channel.send(str(amount) + " dkp has been added to the event pool!")
+
+async def unspenddkp(channel,author,name,tokens,client):
+  await adddkp(channel,author,name,tokens,client)
+  amount = 4999
+  #TODO also remove dkp from event pool
+  await channel.send(str(amount) + " dkp has been removed from the event pool!")
+
+async def startevent(channel, tokens):
+  event_id = None
+  if tokens[1].isdigit():
+    event_id = int(tokens[1])
+  else: 
+    await channel.send(str(tokens[1]) + " is not a valid id.")
+    return
+
+  #TODO add database hook and end any other currently running events 
+  await channel.send("The event with the id: " + str(event_id) + " has been begun!.")
+
+async def endevent(channel):
+  #TODO add database hook
+  event_id = None
+  await channel.send("The event with the id: " + str(event_id) + " has ended!")
+
+
+async def addblacklist(channel,author,name,tokens,client):
+  #TODO get username from token[1]
+  userid = tokens[1]
+  days = None
+  if tokens[2].isdigit():
+    days = int(tokens[2])
+  else: 
+    await channel.send(str(tokens[2]) + " is not a valid number of days")
+    return
+  offense = " ".join(tokens[3:])
+  #TODO add database hook and run any other currently running events 
+  event_id = None
+  await channel.send("The user " + str(userid) + " has been added to the blacklist for " + str(days) + " days!")
+
+async def removeblacklist(channel):
+  #TODO add database hook
+  blacklist_id = None
+  await channel.send("The blacklist entry with the id: " + str(blacklist_id) + " has been removed!")
+
+async def blacklist(channel):
+  #TODO add database hook
+  await channel.send("The following blacklist entries or whatever.")
+
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
     return False
@@ -564,6 +705,18 @@ async def parse_loot_master_commands(client,channel,author,name,content,roles,op
     else:
       await notEnoughArguments(channel,2,"!removedkp")
     return True
+  if operation == "spenddkp":
+    if len(tokens) >= 3:   
+      await spenddkp(channel,author,name,tokens,client)
+    else:
+      await notEnoughArguments(channel,2,"!spenddkp")
+    return True
+  if operation == "unspenddkp":
+    if len(tokens) >= 3:   
+      await unspenddkp(channel,author,name,tokens,client)
+    else:
+      await notEnoughArguments(channel,2,"!unspenddkp")
+    return True
   elif operation == "auction":
     if len(tokens) >= 2:   
       await startauction(channel,name,tokens)
@@ -573,7 +726,57 @@ async def parse_loot_master_commands(client,channel,author,name,content,roles,op
   elif operation == "endauction":
     await endauction(channel,author,client)
     return True
+  elif operation == "createevent":
+    if len(tokens) >= 7:   
+      await createevent(channel, tokens)
+    else:
+      await notEnoughArguments(channel,6,"!createevent")
+    return True
+  elif operation == "removeevent":
+    if len(tokens) >= 2:   
+      await removeevent(channel, tokens)
+    else:
+      await notEnoughArguments(channel,1,"!removeevent")
+    return True
+  elif operation == "startevent":
+    if len(tokens) >= 2:   
+      await startevent(channel, tokens)
+    else:
+      await notEnoughArguments(channel,1,"!startevent")
+    return True
+  elif operation == "endevent":
+    await endevent(channel)
+    return True
 
+  return False
+
+async def parse_loot_officer_commands(client,channel,author,name,content,roles,operation,tokens):
+  if not discord.utils.get(channel.guild.roles, name="Captain Duck") in roles and not discord.utils.get(channel.guild.roles, name="Officer Duck") in roles:
+    return False
+  if operation == "forcecheckin":
+    if len(tokens) >= 2:
+      await forcecheckin(channel, author, tokens)
+    else:
+      await notEnoughArguments(channel,1,"!forcecheckin")
+    return True
+  if operation == "didnotshow":
+    if len(tokens) >= 3:
+      await didnotshow(channel, author, tokens)
+    else:
+      await notEnoughArguments(channel,2,"!didnotshow")
+    return True
+  if operation == "addblacklist":
+    if len(tokens) >= 4:
+      await addblacklist(channel,author,name,tokens,client)
+    else:
+      await notEnoughArguments(channel,3,"!addblacklist")
+    return True
+  if operation == "removeblacklist":
+    if len(tokens) >= 2:
+      await removeblacklist(channel)
+    else:
+      await notEnoughArguments(channel,1,"!removeblacklist")
+    return True
   return False
 
 async def parse_command(client,channel,author,name,content):
@@ -604,6 +807,10 @@ async def parse_command(client,channel,author,name,content):
     await stats(channel, author, name)
   elif operation == "days":
     await days(channel, author, name)
+  elif operation == "checkin":
+    await checkin(channel, author, name)
+  elif operation == "blacklist":
+    await blacklist(channel)
   elif operation == "setname":
     if len(tokens) >= 2:   
       await setname(channel,author,name,tokens[1])
@@ -651,6 +858,8 @@ async def parse_command(client,channel,author,name,content):
   elif operation == "classlist":
     await classlist(channel,client)
   elif await parse_loot_master_commands(client,channel,author,name,content,author.roles,operation,tokens):
+    None #logic all in parse
+  elif await parse_loot_officer_commands(client,channel,author,name,content,author.roles,operation,tokens):
     None #logic is done in parse
     
   
