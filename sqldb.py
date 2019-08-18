@@ -44,7 +44,6 @@ def init_db():
                             (7, "Mining"),
                             (8, "Skinning"),
                             (9, "Tailoring"); """)
-#  sql_commands.append("ALTER TABLE players RENAME TO _players_old;") #TODO won't be needed when run once
   sql_commands.append(""" CREATE TABLE IF NOT EXISTS players (
                             discord_id integer NOT NULL PRIMARY KEY,
                             dkp integer NOT NULL DEFAULT 0 CHECK(dkp >= 0),
@@ -58,12 +57,6 @@ def init_db():
                             CONSTRAINT fk_prof1 FOREIGN KEY(prof1) REFERENCES professions(id) ON DELETE SET DEFAULT,
                             CONSTRAINT fk_prof2 FOREIGN KEY(prof2) REFERENCES professions(id) ON DELETE SET DEFAULT
                           ) WITHOUT ROWID; """)
-#  sql_commands.append("UPDATE _players_old SET prof1 = 0 WHERE prof1 IS NULL;") #TODO won't be needed when run once
-#  sql_commands.append("UPDATE _players_old SET prof2 = 0 WHERE prof2 IS NULL;") #TODO won't be needed when run once
-#  sql_commands.append(""" INSERT OR IGNORE INTO players (discord_id, dkp, need_rolls, greed_rolls, character_name, joined_at, prof1, prof2)
-#                            SELECT discord_id, dkp, need_rolls, greed_rolls, account_name, join_date, prof1, prof2
-#                            FROM _players_old; """) #TODO won't be needed when run once
-#  sql_commands.append("DROP TABLE IF EXISTS _players_old;") #TODO won't be needed when run once
 
   try:
     conn = sqlite3.connect(DB_FILE)
