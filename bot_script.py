@@ -8,6 +8,7 @@ import tempfile
 import io
 import PIL
 import operator
+import re
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -55,6 +56,40 @@ def days_since_join(join_date):
   diff = datetime.datetime.now() - join
   days = diff.days
   return days
+
+async def id_from_name(channel, client, name):
+  members = list(client.get_all_members())
+
+  #ret if empty
+  if len(name) == 0:
+    await channel.send("The empty string was found in the place of user " + name)
+    return None
+
+  #check if its a mention
+  mention_id = re.search('\<\@([^<>@]+)\>', name)
+  if mention_id is not None:
+    disc_id = mention_id.group(1)
+    if client.get_user(int(disc_id)) is not None:
+      return disc_id
+    else:
+      await channel.send("An id was provided but its an invalid id: " + disc_id)
+      return None
+
+  #Now try by character name
+  record = sqldb.get_account_record_by_acc_name(name)
+  if record is not None and record:
+    #TODO change to record[0] when new table pushes
+    return record[1]
+
+  #find by discord name
+  for member in members:
+    if member.display_name == name:
+      return member.id
+
+  #Else not found
+  if not found:
+    await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
+    return None
 
 def html_header():
   return '<html><body><div style="width:600px;">\n'
@@ -339,40 +374,17 @@ async def notEnoughArguments(channel, argsExpected, commandText):
   await channel.send(commandText + " requires at least " + str(argsExpected) + " argument" + ("s." if argsExpected > 1 else "."))
 
 async def adddkp(channel,author,name,tokens,client):
-  idlist = []
-  amount = tokens[len(tokens)-1]
-  intamount = 0
-  members = list(client.get_all_members())
-  #all but last are users to add dkp to
-  for i in range(1,len(tokens) - 1):
-    found = False
-    currenttoken = tokens[i]
-    if len(currenttoken) == 0:
-      await channel.send("The empty string was found in the place of user " + str(i));
-      return False
-    record = sqldb.get_account_record_by_acc_name(currenttoken)
-    if record is not None and record:
-      idlist.append(record[1])
-      found = True
-      continue
-    #find member
-    foundMember = None
-    for member in members:
-      if member.display_name == currenttoken:
-        foundMember = member
-        break
-    if foundMember is not None:
-      idlist.append(foundMember.id)
-      found = True
-      continue
-    if not found:
-      await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
-      return False
-  
   #Check if dkp is a valid number
-  if amount.isdigit() and int(amount) > 0:
-    intamount = int(amount)
-  else :
+  idlist = []
+  for i in range(1,len(tokens) - 1):
+    d_id = await id_from_name(channel, client, tokens[i])
+    if d_id is not None:
+      idlist.append(d_id)
+    else:
+      return False
+
+  amount = tokens[len(tokens)-1]
+  if not amount.isdigit() or not int(amount) > 0:
     await channel.send(amount + " is not a valid amount.")
     return False
 
@@ -384,44 +396,21 @@ async def adddkp(channel,author,name,tokens,client):
     
 
 async def removedkp(channel,author,name,tokens,client):
-  idlist = []
-  amount = tokens[len(tokens)-1]
-  intamount = 0
-  members = list(client.get_all_members())
-  #all but last are users to add dkp to
-  for i in range(1,len(tokens) - 1):
-    found = False
-    currenttoken = tokens[i]
-    if len(currenttoken) == 0:
-      await channel.send("The empty string was found in the place of user " + str(i));
-      return False
-    record = sqldb.get_account_record_by_acc_name(currenttoken)
-    if record is not None and record:
-      idlist.append(record[1])
-      found = True
-      continue
-    #find member
-    foundMember = None
-    for member in members:
-      if member.display_name == currenttoken:
-        foundMember = member
-        break
-    if foundMember is not None:
-      idlist.append(foundMember.id)
-      found = True
-      continue
-    if not found:
-      await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
-      return False
-  
   #Check if dkp is a valid number
-  if amount.isdigit() and int(amount) > 0:
-    intamount = int(amount)
-  else :
+  idlist = []
+  for i in range(1,len(tokens) - 1):
+    d_id = await id_from_name(channel, client, tokens[i])
+    if d_id is not None:
+      idlist.append(d_id)
+    else:
+      return False
+
+  amount = tokens[len(tokens)-1]
+  if not amount.isdigit() or not int(amount) > 0:
     await channel.send(amount + " is not a valid amount.")
     return False
 
-  #now decremetn that dkp!
+  #now decrement that dkp!
   for d_id in idlist:
     sqldb.decrement_dkp(d_id,amount)
 
@@ -639,13 +628,17 @@ async def didnotshow(channel, author, tokens):
 
 
 async def spenddkp(channel,author,name,tokens,client):
-  await removedkp(channel,author,name,tokens,client)
+  success = await removedkp(channel,author,name,tokens,client)
+  if success == False:
+    return False
   amount = 4999
   #TODO also add dkp from event pool
   await channel.send(str(amount) + " dkp has been added to the event pool!")
 
 async def unspenddkp(channel,author,name,tokens,client):
-  await adddkp(channel,author,name,tokens,client)
+  success = await adddkp(channel,author,name,tokens,client)
+  if success == False:
+    return False
   amount = 4999
   #TODO also remove dkp from event pool
   await channel.send(str(amount) + " dkp has been removed from the event pool!")
