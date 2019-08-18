@@ -107,7 +107,6 @@ def set_status_abandoned(discord_id):
     conn.close()
 
 
-# TODO: update functions calling this since table has changed
 def get_player(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -122,12 +121,11 @@ def get_player(discord_id):
     conn.close()
 
 
-# TODO: update functions calling this since table has changed
 def get_player_by_char_name(char_name):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE character_name=?",(char_name,))
+    cur.execute("SELECT * FROM players WHERE LOWER(character_name)=LOWER(?)",(char_name,))
     result = cur.fetchone()
     return result
   except Error as e:
@@ -136,7 +134,6 @@ def get_player_by_char_name(char_name):
     conn.close()
 
 
-# TODO: update functions calling this since table has changed
 def get_all_players():
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -215,7 +212,6 @@ def increment_greed(discord_id):
     conn.close()
 
 
-# TODO: handle error failing unique constraint, try calling get_player_with_char_name and seeing if it returns a result
 def set_name(discord_id, name):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -271,7 +267,6 @@ def set_prof2(discord_id, prof_id):
     conn.close()
 
 
-# TODO: update functions calling this, will now return profession name
 def get_prof1(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -287,7 +282,6 @@ def get_prof1(discord_id):
     conn.close()
 
 
-# TODO: update functions calling this, will now return profession name
 def get_prof2(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)

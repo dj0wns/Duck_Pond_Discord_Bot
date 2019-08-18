@@ -25,32 +25,6 @@ auction_mode = False
 auction_item = ""
 auction_dict = {}
 
-prof_map = {
-  'none' : 0,
-  'alchemy' : 1,
-  'blacksmithing' : 2,
-  'enchanting' : 3,
-  'engineering' : 4,
-  'herbalism' : 5,
-  'leatherworking' : 6,
-  'mining' : 7,
-  'skinning' : 8,
-  'tailoring' : 9
-}
-
-#inverse and with correct caps
-inv_prof_map = {
-  0 : 'None',
-  1 : 'Alchemy',
-  2 : 'Blacksmithing',
-  3 : 'Enchanting',
-  4 : 'Engineering',
-  5 : 'Herbalism',
-  6 : 'Leatherworking',
-  7 : 'Mining',
-  8 : 'Skinning',
-  9 : 'Tailoring'
-}
 def days_since_join(join_date):
   join = datetime.datetime.strptime(join_date,'%Y-%m-%d %H:%M:%S.%f')
   diff = datetime.datetime.now() - join
@@ -78,8 +52,7 @@ async def id_from_name(channel, client, name):
   #Now try by character name
   record = sqldb.get_player_by_char_name(name)
   if record is not None and record:
-    #TODO change to record[0] when new table pushes
-    return record[1]
+    return record[0]
 
   #find by discord name
   for member in members:
@@ -263,8 +236,13 @@ async def countdown(channel):
     
 
 async def setname(channel, author, name, accname):
-  sqldb.set_name(author.id,accname)
-  await channel.send(name + "'s character name is now: " + accname)
+  nametest = sqldb.get_player_by_char_name(accname)
+  if nametest is None:
+    sqldb.set_name(author.id,accname)
+    await channel.send(name + "'s character name is now: " + accname)
+  else:
+    await channel.send("The character name, " + accname + ", is already in use.")
+    
 
 async def setclass(channel, author, name, classname, client):
   classname = classname.lower()
@@ -494,38 +472,25 @@ async def spell(channel,tokens):
     await channel.send(e)
 
 async def setprof1(channel, author, name, prof):
-  prof = prof.lower()
-  if prof_map.get(prof) is None:
-    await channel.send(prof + " is not a valid profession name.")
-  else:
-    prof1 = prof_map.get(prof)
-    sqldb.set_prof1(author.id,prof1)
+  prof_id = sqldb.get_prof_id(prof)
+  if prof_id is not None:
+    sqldb.set_prof1(author.id,prof_id)
     await channel.send(name + " has added " + prof + " as prof1.")
+  else:
+    await channel.send(prof + " is not a valid profession name.")
+    
 
 async def setprof2(channel, author, name, prof):
-  prof = prof.lower()
-  if prof_map.get(prof) is None:
-    await channel.send(prof + " is not a valid profession name.")
-  else:
-    prof2 = prof_map.get(prof)
-    sqldb.set_prof2(author.id,prof2)
+  prof_id = sqldb.get_prof_id(prof)
+  if prof_id is not None:
+    sqldb.set_prof2(author.id,prof_id)
     await channel.send(name + " has added " + prof + " as prof2.")
+  else:
+    await channel.send(prof + " is not a valid profession name.")
 
 async def getprofs(channel, author, name):
-  prof1 = "None"
-  prof1_temp = sqldb.get_prof1(author.id)
-  prof2 = "None"
-  prof2_temp = sqldb.get_prof2(author.id)
-  if not prof1_temp is None:
-    if inv_prof_map.get(prof1_temp) is None:
-      prof1 = "None"
-    else:
-      prof1 = inv_prof_map.get(prof1_temp)
-  if not prof2_temp is None:
-    if inv_prof_map.get(prof2_temp) is None:
-      prof2 = "None"
-    else:
-      prof2 = inv_prof_map.get(prof2_temp)
+  prof1 = sqldb.get_prof1(author.id)
+  prof2 = sqldb.get_prof2(author.id)
   await channel.send(name + " has the following profs: " + prof1 + " and " + prof2)
 
 async def addrole(channel, author, name, role):
