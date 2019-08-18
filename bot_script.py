@@ -204,11 +204,11 @@ async def paladin(channel):
 
 async def stats(channel, author, name):
   result = sqldb.get_player(author.id)
-  main = (result[5] if not result[5] == "" else "unknown")
-  dkp = str(result[2])
-  need= str(result[3])
-  greed = str(result[4])
-  days = str(days_since_join(result[6]))
+  main = (result[4] if not result[4] is None else "unknown")
+  dkp = str(result[1])
+  need= str(result[2])
+  greed = str(result[3])
+  days = str(days_since_join(result[5]))
   avatar = author.avatar_url_as(static_format='png',size=128)
   avatarbytes = await avatar.read()
   avatarImage = Image.open(io.BytesIO(avatarbytes))
@@ -237,16 +237,16 @@ async def listAcc(client,channel):
   message = html_header()
   message += '<p style="font-size:40px">'
   for result in results:
-    if not client.user.id == result[1]:
-      user=channel.guild.get_member(result[1])
+    if not client.user.id == result[0]:
+      user=channel.guild.get_member(result[0])
       #if user isnt in discord
       if user == None:
         continue
       message += (user.display_name + ":<br>" 
-                 + (result[5] if not result[5] == "" else "unknown")
-                 + "&emsp;" + str(result[2]) + " dkp<br>" 
-                 + "&emsp;" + str(result[3]) + " need rolls<br>"
-                 + "&emsp;" + str(result[4]) + " greed rolls<br>")
+                 + (result[4] if not result[4] is None else "unknown")
+                 + "&emsp;" + str(result[1]) + " dkp<br>" 
+                 + "&emsp;" + str(result[2]) + " need rolls<br>"
+                 + "&emsp;" + str(result[3]) + " greed rolls<br>")
   
   message += html_footer()
   await send_html(channel,message)
@@ -557,7 +557,7 @@ async def removerole(channel, author, name, role):
     await channel.send(role + " is not a valid role!")
 
 async def days(channel, author, name):
-  days = str(days_since_join(get_joined_at(author.id)))
+  days = str(days_since_join(sqldb.get_joined_at(author.id)))
   await channel.send(name + " has been a member of the guild for " + days + " days!")
 
 async def createevent(channel, tokens):
