@@ -24,35 +24,6 @@ auction_mode = False
 auction_item = ""
 auction_dict = {}
 
-# TODO: not needed
-prof_map = {
-  'none' : 0,
-  'alchemy' : 1,
-  'blacksmithing' : 2,
-  'enchanting' : 3,
-  'engineering' : 4,
-  'herbalism' : 5,
-  'leatherworking' : 6,
-  'mining' : 7,
-  'skinning' : 8,
-  'tailoring' : 9
-}
-
-# TODO: not needed
-#inverse and with correct caps
-inv_prof_map = {
-  0 : 'None',
-  1 : 'Alchemy',
-  2 : 'Blacksmithing',
-  3 : 'Enchanting',
-  4 : 'Engineering',
-  5 : 'Herbalism',
-  6 : 'Leatherworking',
-  7 : 'Mining',
-  8 : 'Skinning',
-  9 : 'Tailoring'
-}
-
 
 # Initializes tables and some data in the database if they don't exist
 def init_db():
@@ -110,7 +81,7 @@ def init_db():
 def create_player(conn, discord_id):
   sql = """ INSERT OR IGNORE INTO players(discord_id)
               VALUES(?) """
-  to_insert = (discord_id)
+  to_insert = (discord_id,)
   try:
     cur = conn.cursor()
     cur.execute(sql, to_insert)
@@ -159,11 +130,11 @@ def get_player(discord_id):
 
 
 # TODO: update functions calling this since table has changed
-def get_player_by_char_name(account_name):
+def get_player_by_char_name(char_name):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE character_name=?",(account_name,))
+    cur.execute("SELECT * FROM players WHERE character_name=?",(char_name,))
     result = cur.fetchone()
     return result
   except Error as e:
@@ -172,9 +143,8 @@ def get_player_by_char_name(account_name):
     conn.close()
 
 
-# TODO: rename to get all players
 # TODO: update functions calling this since table has changed
-def print_account_records():
+def get_all_players():
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
@@ -252,15 +222,14 @@ def increment_greed(discord_id):
     conn.close()
 
 
-# TODO: update to character name
-# TODO: handle error failing unique constraint
+# TODO: handle error failing unique constraint, try calling get_player_with_char_name and seeing if it returns a result
 def set_name(discord_id, name):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE players SET character_name=? WHERE discord_id=" + str(discord_id), (name,))
+    cur.execute("UPDATE OR IGNORE players SET character_name=? WHERE discord_id=" + str(discord_id), (name,))
     conn.commit()
   except Error as e:
     print(e)
@@ -268,14 +237,26 @@ def set_name(discord_id, name):
     conn.close()
 
 
-# TODO: change how this is called, don't use dict
-def set_prof1(discord_id, profID):
+def get_prof_id(prof_name):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM professions WHERE LOWER(name)=LOWER(?)", (prof_name,))
+    result = cur.fetchone()
+    return result[0] if result else None
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def set_prof1(discord_id, prof_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof1=? WHERE discord_id=" + str(discord_id), (profID,))
+    cur.execute("UPDATE players SET prof1=? WHERE discord_id=" + str(discord_id), (prof_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -283,14 +264,13 @@ def set_prof1(discord_id, profID):
     conn.close()
 
 
-# TODO: change how this is called, don't use dict
-def set_prof2(discord_id, profID):
+def set_prof2(discord_id, prof_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof2=? WHERE discord_id=" + str(discord_id), (profID,))
+    cur.execute("UPDATE players SET prof2=? WHERE discord_id=" + str(discord_id), (prof_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -298,14 +278,14 @@ def set_prof2(discord_id, profID):
     conn.close()
 
 
-# TODO: change how this is called, use professions table
+# TODO: update functions calling this, will now return profession name
 def get_prof1(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT prof1 FROM players WHERE discord_id=" + str(discord_id))
+    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof1 = professions.id WHERE players.discord_id=" + str(discord_id))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -314,14 +294,14 @@ def get_prof1(discord_id):
     conn.close()
 
 
-# TODO: change how this is called, use professions table
+# TODO: update functions calling this, will now return profession name
 def get_prof2(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT prof2 FROM players WHERE discord_id=" + str(discord_id))
+    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof2 = professions.id WHERE players.discord_id=" + str(discord_id))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -330,8 +310,7 @@ def get_prof2(discord_id):
     conn.close()
 
 
-# TODO: rename to get joined at
-def get_join_date(discord_id):
+def get_joined_at(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)

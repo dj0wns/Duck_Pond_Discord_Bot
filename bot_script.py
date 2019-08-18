@@ -76,7 +76,7 @@ async def id_from_name(channel, client, name):
       return None
 
   #Now try by character name
-  record = sqldb.get_account_record_by_acc_name(name)
+  record = sqldb.get_player_by_char_name(name)
   if record is not None and record:
     #TODO change to record[0] when new table pushes
     return record[1]
@@ -232,7 +232,7 @@ async def stats(channel, author, name):
 
 async def listAcc(client,channel):
   #make sure all members are accounted for
-  results=sqldb.print_account_records()
+  results=sqldb.get_all_players()
   if results == None: return
   message = html_header()
   message += '<p style="font-size:40px">'
@@ -557,7 +557,7 @@ async def removerole(channel, author, name, role):
     await channel.send(role + " is not a valid role!")
 
 async def days(channel, author, name):
-  days = str(days_since_join(get_join_date(author.id)))
+  days = str(days_since_join(get_joined_at(author.id)))
   await channel.send(name + " has been a member of the guild for " + days + " days!")
 
 async def createevent(channel, tokens):
