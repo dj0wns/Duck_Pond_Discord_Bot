@@ -9,6 +9,7 @@ import io
 import PIL
 import operator
 import re
+import math
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
@@ -40,7 +41,7 @@ async def id_from_name(channel, client, name):
     return None
 
   #check if its a mention
-  mention_id = re.search('\<\@([^<>@]+)\>', name)
+  mention_id = re.search('\<\@[^0-9]*([^<>@!]+)\>', name)
   if mention_id is not None:
     disc_id = mention_id.group(1)
     if client.get_user(int(disc_id)) is not None:
@@ -58,11 +59,9 @@ async def id_from_name(channel, client, name):
   for member in members:
     if member.display_name == name:
       return member.id
-
-  #Else not found
-  if not found:
-    await channel.send("\"" +  currenttoken + "\"" + " is not a valid account.")
-    return None
+  
+  await channel.send("\"" +  name + "\"" + " is not a valid account.")
+  return None
 
 def html_header():
   return '<html><body><div style="width:600px;">\n'
@@ -130,6 +129,8 @@ async def commands(channel):
             " - !unspenddkp [user] [amount] - revert a mistake dkp spend for an auction\n"
             " - !removedkp [user]... [amount] - removes amount of dkp from users in the event of fixing or punishment - uses discord name or char name\n"
             " - !auction [itemname] - starts an auction for [itemname] users my private message RoboDuck to bid\n"
+            " - !uncheckin [event] [user] - Removes a checked in user from an event\n"
+            " - !didshow [eventid] [name] - overrides didnotshow\n"
             )
   moderation=(
             "These commands are for moderating players - Officers only:\n"
@@ -553,8 +554,10 @@ async def createevent(channel, tokens):
   name = tokens[5]
   description = " ".join(tokens[6:])
 
-  #TODO add to database
-  
+  end_time = start_time + datetime.timedelta(hours=duration)
+
+  sqldb.add_event(name,description,start_time,end_time,event_type,dkp_amount)
+
   await channel.send("The event of type, " + event_type + ", named: " + name + ", " + description
       + " has been created to occur on " + str(start_time)
       + " and will run for " + str(duration) + " hours. Attendants will be awarded "
@@ -568,85 +571,282 @@ async def removeevent(channel, tokens):
     await channel.send(str(tokens[1]) + " is not a valid id.")
     return
 
-  #TODO add database hook
-  await channel.send("The event with the id: " + str(event_id) + " has been removed.")
+  if sqldb.get_event(event_id) is None:
+    await channel.send("The event with the id: " + str(event_id) + " does not exist.")
+  else:
+    sqldb.remove_event(event_id)
+    await channel.send("The event with the id: " + str(event_id) + " has been removed.")
 
 async def checkin(channel, author, name):
-  #TODO logic
-  title = "None"
-  await channel.send(name + " has checked into the event titled: " + title)
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  if sqldb.is_blacklisted(author.id) == 1 : 
+    await channel.send("You are currently blacklisted from registering for events.")
+    return
+    
+  await forcecheckin(channel, author, None, author.id)
 
-async def forcecheckin(channel, author, tokens):
-  #TODO logic
-  player_id = tokens[1]
-  discord_name = "N/A"
-  title = "None"
-  await channel.send(discord_name + " has been checked into the event titled: " + title)
+async def forcecheckin(channel, author, token, player_id=None):
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  if player_id is None:
+    player_id = await id_from_name(channel, client, token)
+
+  if player_id is None:
+    await channel.send("No user with the name: " + token + " exists.")
+    return
+
+  player = sqldb.get_player(player_id)
+  name = player[4]
+  
+  sqldb.add_attendance(running_event[0],player_id)
+
+  await channel.send(name + " has been checked in to the event titled: "  + running_event[1])
+
+async def uncheckin(channel, author, tokens):
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  player_id = await id_from_name(channel, client, tokens[1])
+
+  if player_id is None:
+    await channel.send("No user with the name: " + tokens[1] + " exists.")
+    return
+
+  player = sqldb.get_player(player_id)
+  name = player[4]
+  
+  sqldb.remove_attendance(running_event[0], player_id)
+
+  await channel.send(name + " has been checked out of the event titled: "  + running_event[1])
 
 async def didnotshow(channel, author, tokens):
-  #TODO logic
   event_id = tokens[1]
-  player_id = tokens[2]
-  discord_name = "N/A"
-  title = "None"
-  await channel.send(discord_name + " has been removed from the event titled: " + title)
-
-
-async def spenddkp(channel,author,name,tokens,client):
-  success = await removedkp(channel,author,name,tokens,client)
-  if success == False:
-    return False
-  amount = 4999
-  #TODO also add dkp from event pool
-  await channel.send(str(amount) + " dkp has been added to the event pool!")
-
-async def unspenddkp(channel,author,name,tokens,client):
-  success = await adddkp(channel,author,name,tokens,client)
-  if success == False:
-    return False
-  amount = 4999
-  #TODO also remove dkp from event pool
-  await channel.send(str(amount) + " dkp has been removed from the event pool!")
-
-async def startevent(channel, tokens):
-  event_id = None
+  player_id = await id_from_name(channel, client, tokens[2])
   if tokens[1].isdigit():
     event_id = int(tokens[1])
   else: 
     await channel.send(str(tokens[1]) + " is not a valid id.")
     return
 
-  #TODO add database hook and end any other currently running events 
+  if player_id is None:
+    await channel.send("No user with the name: " + tokens[2] + " exists.")
+    return
+
+  if sqldb.is_checked_in(event_id, player_id) == 0:
+    await channel.send("No user with the name: " + tokens[2] + " is checked in to the event: " + str(event_id))
+    return
+    
+
+  sqldb.set_attended(event_id,player_id, 0)
+  player = sqldb.get_player(player_id)
+  name = player[4]
+  await channel.send(name + " has been marked did not show from the event titled: " + str(event_id))
+
+async def didshow(channel, author, tokens):
+  event_id = tokens[1]
+  player_id = await id_from_name(channel, client, tokens[2])
+  if tokens[1].isdigit():
+    event_id = int(tokens[1])
+  else: 
+    await channel.send(str(tokens[1]) + " is not a valid id.")
+    return
+
+  if player_id is None:
+    await channel.send("No user with the name: " + tokens[2] + " exists.")
+    return
+
+  if sqldb.is_checked_in(event_id, player_id) == 0:
+    await channel.send("No user with the name: " + tokens[2] + " is checked in to the event: " + str(event_id))
+    return
+    
+
+  sqldb.set_attended(event_id,player_id,1)
+  player = sqldb.get_player(player_id)
+  name = player[4]
+  await channel.send(name + " has been marked did show from the event titled: " + str(event_id))
+
+
+async def spenddkp(channel,author,name,tokens,client):
+  amount = None
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  if not running_event[5] == "raid":
+    await channel.send("The current running event is not a raid.")
+    return
+  player_id = await id_from_name(channel, client, tokens[1])
+  if player_id is None:
+    await channel.send("No user with the name: " + tokens[1] + " exists.")
+    return
+  if tokens[2].isdigit():
+    amount = int(tokens[2])
+  else: 
+    await channel.send(str(tokens[2]) + " is not a valid dkp amount.")
+    return
+  event_id = running_event[0]
+  if sqldb.is_checked_in(event_id, player_id) == 0:
+    await channel.send("No user with the name: " + tokens[1] + " is checked in to the current running event.")
+    return
+
+
+  success = await removedkp(channel,author,name,tokens,client)
+  if success == False:
+    return False
+  sqldb.set_dkp_spent(event_id, running_event[7] + amount)
+  await channel.send(str(amount) + " dkp has been added to the event pool!")
+
+async def unspenddkp(channel,author,name,tokens,client):
+  amount = None
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  if not running_event[5] == "raid":
+    await channel.send("The current running event is not a raid.")
+    return
+  player_id = await id_from_name(channel, client, tokens[1])
+  if player_id is None:
+    await channel.send("No user with the name: " + tokens[1] + " exists.")
+    return
+  if tokens[2].isdigit():
+    amount = int(tokens[2])
+  else: 
+    await channel.send(str(tokens[2]) + " is not a valid dkp amount.")
+    return
+  event_id = running_event[0]
+  if sqldb.is_checked_in(event_id, player_id) == 0:
+    await channel.send("No user with the name: " + tokens[1] + " is checked in to the current running event.")
+    return
+
+
+  success = await adddkp(channel,author,name,tokens,client)
+  if success == False:
+    return False
+  sqldb.set_dkp_spent(event_id, running_event[7] - amount)
+  await channel.send(str(amount) + " dkp has been removed from the event pool!")
+
+async def event_begin_announcement(channel, client):
+  #announcement channel
+  channel = client.get_channel(581739109928927277)
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    return
+  name = running_event[1]
+  description = running_event[2]
+  event_type = running_event[5]
+  dkp_amount = running_event[6]
+
+  await channel.send("@everyoneThe " + event_type + " event '" + name + ", " + description
+      + "' has begun! Come to the event and !checkin to earn "
+      + str(dkp_amount) + " dkp.")
+
+async def startevent(channel, client, tokens):
+  event_id = None
+  if tokens[1].isdigit():
+    event_id = int(tokens[1])
+  else: 
+    await channel.send(str(tokens[1]) + " is not a valid id.")
+    return
+  
+  if sqldb.get_event(event_id) is None:
+    await channel.send("The event with the id: " + str(event_id) + " does not exist.")
+    return
+  
+  running_event = sqldb.get_current_event()
+  if running_event is not None:
+    endevent(channel)
+
+  sqldb.set_event_started(event_id)
+  await event_begin_announcement(channel, client)
   await channel.send("The event with the id: " + str(event_id) + " has been begun!.")
 
 async def endevent(channel):
-  #TODO add database hook
-  event_id = None
-  await channel.send("The event with the id: " + str(event_id) + " has ended!")
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  event_id = running_event[0]
+  attendees = sqldb.get_attendees(event_id)
+  attendee_len = len(attendees)
+  if attendee_len < 1:
+    attendee_len = 1
+  dkp_base = running_event[6]
+  dkp_spent = running_event[7]
+  dkp_per_player = math.ceil(float(dkp_spent)/float(attendee_len))
+  dkp_awarded = None
+  if dkp_base > dkp_per_player:
+    dkp_awarded = dkp_base
+  else:
+    dkp_awarded = dkp_per_player
+
+  sqldb.set_event_finished(event_id)
+  for player_id in attendees:
+    #player_id is a tuple here
+    sqldb.increment_dkp(player_id[0],dkp_awarded)
+
+  await channel.send("The event with the id: " + str(event_id) + " has ended and " + str(dkp_awarded) + " dkp has been given to all attendees!")
 
 
 async def addblacklist(channel,author,name,tokens,client):
-  #TODO get username from token[1]
-  userid = tokens[1]
+  user_id = await id_from_name(channel, client, tokens[1])
   days = None
+  if user_id is None:
+    await channel.send("No user with the name: " + tokens[1] + " exists.")
+    return
   if tokens[2].isdigit():
     days = int(tokens[2])
   else: 
     await channel.send(str(tokens[2]) + " is not a valid number of days")
     return
   offense = " ".join(tokens[3:])
-  #TODO add database hook and run any other currently running events 
-  event_id = None
-  await channel.send("The user " + str(userid) + " has been added to the blacklist for " + str(days) + " days!")
+  start_time = datetime.datetime.now()
+  end_time = start_time + datetime.timedelta(days=days)
+  sqldb.add_to_blacklist(user_id, start_time, end_time, name, offense)
+  await channel.send("The user " + tokens[1] + " has been added to the blacklist for " + str(days) + " days!")
 
-async def removeblacklist(channel):
-  #TODO add database hook
-  blacklist_id = None
+async def removeblacklist(channel, tokens):
+  blacklist_id = tokens[1]
+  if not blacklist_id.isdigit():
+    await channel.send("The blacklist entry with the id: " + str(blacklist_id) + " does not exist!")
+    return
+  
+  if sqldb.get_from_blacklist(blacklist_id) is None:
+    await channel.send("The blacklist entry with the id: " + str(blacklist_id) + " does not exist!")
+    return
+  
+  sqldb.remove_from_blacklist(blacklist_id)
   await channel.send("The blacklist entry with the id: " + str(blacklist_id) + " has been removed!")
 
 async def blacklist(channel):
-  #TODO add database hook
-  await channel.send("The following blacklist entries or whatever.")
+  blacklist = sqldb.get_blacklist(datetime.datetime.now())
+  message = "Player   |   Start   |   End   |   Offense\n"
+  for item in blacklist:
+    player = sqldb.get_player(item[1])
+    name = player[4]
+    message += name + "   |   " + item[2] + "   |   " + item[3] + "   |   " + item[5] + "\n"
+
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Current Blacklist", value=message)
+  await channel.send(embed=embedMessage)
+
+async def fullblacklist(channel):
+  blacklist = sqldb.get_blacklist()
+  message = "Player   |   Start   |   End   |   Offense\n"
+  for item in blacklist:
+    player = sqldb.get_player(item[1])
+    name = player[4]
+    message += name + "   |   " + item[2] + "   |   " + item[3] + "   |   " + item[5] + "\n"
+
+  embedMessage = discord.Embed()
+  embedMessage.add_field(name="Full Blacklist", value=message)
+  await channel.send(embed=embedMessage)
 
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
@@ -698,12 +898,24 @@ async def parse_loot_master_commands(client,channel,author,name,content,roles,op
     return True
   elif operation == "startevent":
     if len(tokens) >= 2:   
-      await startevent(channel, tokens)
+      await startevent(channel, client, tokens)
     else:
       await notEnoughArguments(channel,1,"!startevent")
     return True
   elif operation == "endevent":
     await endevent(channel)
+    return True
+  if operation == "uncheckin":
+    if len(tokens) >= 2:
+      await uncheckin(channel, author, tokens)
+    else:
+      await notEnoughArguments(channel,1,"!uncheckin")
+    return True
+  if operation == "didshow":
+    if len(tokens) >= 3:
+      await didshow(channel, author, tokens)
+    else:
+      await notEnoughArguments(channel,2,"!didshow")
     return True
 
   return False
@@ -713,7 +925,7 @@ async def parse_loot_officer_commands(client,channel,author,name,content,roles,o
     return False
   if operation == "forcecheckin":
     if len(tokens) >= 2:
-      await forcecheckin(channel, author, tokens)
+      await forcecheckin(channel, author, tokens[1])
     else:
       await notEnoughArguments(channel,1,"!forcecheckin")
     return True
@@ -731,9 +943,12 @@ async def parse_loot_officer_commands(client,channel,author,name,content,roles,o
     return True
   if operation == "removeblacklist":
     if len(tokens) >= 2:
-      await removeblacklist(channel)
+      await removeblacklist(channel, tokens)
     else:
       await notEnoughArguments(channel,1,"!removeblacklist")
+    return True
+  elif operation == "fullblacklist":
+    await fullblacklist(channel)
     return True
   return False
 
