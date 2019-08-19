@@ -83,8 +83,10 @@ def init_db():
                             player integer NOT NULL,
                             blacklisted_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             blacklisted_until datetime NOT NULL,
+                            blacklisted_by integer,
                             offense text NOT NULL,
-                            CONSTRAINT fk_player FOREIGN KEY(player) REFERENCES players(discord_id) ON DELETE CASCADE
+                            CONSTRAINT fk_player FOREIGN KEY(player) REFERENCES players(discord_id) ON DELETE CASCADE,
+                            CONSTRAINT fk_player FOREIGN KEY(blacklisted_by) REFERENCES players(discord_id) ON DELETE CASCADE
                           ); """)
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -97,6 +99,8 @@ def init_db():
   finally:
     conn.close()
 
+
+### PLAYER SQL FUNCTIONS ###
 
 # given a db connection, creates player in db if they don't already exist
 def create_player(conn, discord_id):
@@ -336,3 +340,94 @@ def get_joined_at(discord_id):
     print(e)
   finally:
     conn.close()
+
+
+### EVENT SQL FUNCTIONS ###
+
+def add_event(name, description, start_time, end_time, event_type, min_dkp_awarded):
+  sql = """ INSERT OR IGNORE INTO events(name, description, start_time, end_time, type, min_dkp_awarded)
+              VALUES(?,?,?,?,?,?) """
+  to_insert = (name, description, start_time, end_time, event_type, min_dkp_awarded,)
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(sql, to_insert)
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_event(event_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM events WHERE id=" + str(event_id))
+    return cur.fetchone()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_current_event():
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM events WHERE has_started IS TRUE AND has_finished IS FALSE")
+    return cur.fetchone()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def set_event_started(event_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE WHERE id=" + str(event_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def set_event_finished(event_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE, has_finished = TRUE WHERE id=" + str(event_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def set_dkp_spent(event_id, dkp_spent):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("UPDATE OR IGNORE events SET total_dkp_spent = ? WHERE id=" + str(event_id), (dkp_spent,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def remove_event(event_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM events WHERE id=" + str(event_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
