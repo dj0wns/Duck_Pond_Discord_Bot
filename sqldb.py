@@ -383,6 +383,18 @@ def get_current_event():
     conn.close()
 
 
+def get_upcoming_events():
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM events WHERE (has_started IS TRUE AND has_finished IS FALSE) OR has_started IS FALSE")
+    return cur.fetchall()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
 def set_event_started(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
@@ -424,6 +436,76 @@ def remove_event(event_id):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute("DELETE FROM events WHERE id=" + str(event_id))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+### BLACKLIST SQL FUNCTIONS ###
+
+def add_to_blacklist(player_id, blacklisted_at, blacklisted_until, blacklisted_by, offense):
+  sql = """ INSERT OR IGNORE INTO blacklist(player, blacklisted_at, blacklisted_until, blacklisted_by, offense)
+              VALUES(?,?,?,?,?) """
+  to_insert = (player_id, blacklisted_at, blacklisted_until, blacklisted_by, offense,)
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(sql, to_insert)
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def is_blacklisted(player_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT EXISTS(SELECT 1 FROM blacklist WHERE player = ? AND blacklisted_until > CURRENT_TIMESTAMP)", (player_id,))
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_from_blacklist(blacklist_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM blacklist WHERE id=" + str(blacklist_id))
+    return cur.fetchone()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_blacklist(from_date=None):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    sql = "SELECT * FROM blacklist"
+    if from_date is not None:
+      sql += " WHERE blacklisted_until > ?"
+      cur.execute(sql, (from_date,))
+    else:
+      cur.execute(sql)
+    return cur.fetchall()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def remove_from_blacklist(blacklist_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM blacklist WHERE id=" + str(blacklist_id))
     conn.commit()
   except Error as e:
     print(e)
