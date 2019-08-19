@@ -131,7 +131,7 @@ def set_status_abandoned(discord_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("UPDATE players SET status = \"abandoned\" WHERE discord_id=" + str(discord_id))
+    cur.execute("UPDATE players SET status = \"abandoned\" WHERE discord_id = ?", (discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -144,7 +144,7 @@ def get_player(discord_id):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE discord_id=" + str(discord_id) )
+    cur.execute("SELECT * FROM players WHERE discord_id = ?", (discord_id,))
     result = cur.fetchone()
     return result
   except Error as e:
@@ -157,7 +157,7 @@ def get_player_by_char_name(char_name):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players WHERE LOWER(character_name)=LOWER(?)",(char_name,))
+    cur.execute("SELECT * FROM players WHERE LOWER(character_name)=LOWER(?)", (char_name,))
     result = cur.fetchone()
     return result
   except Error as e:
@@ -184,7 +184,7 @@ def increment_dkp(discord_id, amount):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("UPDATE players SET dkp = dkp + " + str(amount) + " WHERE discord_id=" + str(discord_id))
+    cur.execute("UPDATE players SET dkp = dkp + ? WHERE discord_id = ?", (amount, discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -197,7 +197,7 @@ def decrement_dkp(discord_id, amount):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("UPDATE players SET dkp = MAX(dkp - " + str(amount) + " , 0) WHERE discord_id=" + str(discord_id))
+    cur.execute("UPDATE players SET dkp = MAX(dkp - ?, 0) WHERE discord_id = ?", (amount, discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -210,7 +210,7 @@ def get_dkp(discord_id):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("SELECT dkp FROM players WHERE discord_id=" + str(discord_id))
+    cur.execute("SELECT dkp FROM players WHERE discord_id = ?", (discord_id,))
     return cur.fetchone()[0]
   except Error as e:
     print(e)
@@ -223,7 +223,7 @@ def increment_need(discord_id):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("UPDATE players SET need_rolls = need_rolls + 1 WHERE discord_id=" + str(discord_id))
+    cur.execute("UPDATE players SET need_rolls = need_rolls + 1 WHERE discord_id = ?", (discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -236,7 +236,7 @@ def increment_greed(discord_id):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("UPDATE players SET greed_rolls = greed_rolls + 1 WHERE discord_id=" + str(discord_id))
+    cur.execute("UPDATE players SET greed_rolls = greed_rolls + 1 WHERE discord_id = ?", (discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -250,7 +250,7 @@ def set_name(discord_id, name):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE OR IGNORE players SET character_name=? WHERE discord_id=" + str(discord_id), (name,))
+    cur.execute("UPDATE OR IGNORE players SET character_name = ? WHERE discord_id = ?", (name, discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -277,7 +277,7 @@ def set_prof1(discord_id, prof_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof1=? WHERE discord_id=" + str(discord_id), (prof_id,))
+    cur.execute("UPDATE players SET prof1 = ? WHERE discord_id = ?", (prof_id, discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -291,7 +291,7 @@ def set_prof2(discord_id, prof_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("UPDATE players SET prof2=? WHERE discord_id=" + str(discord_id), (prof_id,))
+    cur.execute("UPDATE players SET prof2 = ? WHERE discord_id = ?", (prof_id, discord_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -305,7 +305,7 @@ def get_prof1(discord_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof1 = professions.id WHERE players.discord_id=" + str(discord_id))
+    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof1 = professions.id WHERE players.discord_id = ?", (discord_id,))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -320,7 +320,7 @@ def get_prof2(discord_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof2 = professions.id WHERE players.discord_id=" + str(discord_id))
+    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof2 = professions.id WHERE players.discord_id = ?", (discord_id,))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -334,7 +334,7 @@ def get_joined_at(discord_id):
     conn = sqlite3.connect(DB_FILE)
     create_player(conn, discord_id)
     cur = conn.cursor()
-    cur.execute("SELECT joined_at FROM players WHERE discord_id=" + str(discord_id))
+    cur.execute("SELECT joined_at FROM players WHERE discord_id = ?", (discord_id,))
     return cur.fetchone()[0]
   except Error as e:
     print(e)
@@ -363,7 +363,7 @@ def get_event(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM events WHERE id=" + str(event_id))
+    cur.execute("SELECT * FROM events WHERE id = ?", (event_id,))
     return cur.fetchone()
   except Error as e:
     print(e)
@@ -399,7 +399,7 @@ def set_event_started(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE WHERE id=" + str(event_id))
+    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE WHERE id = ?", (event_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -411,7 +411,7 @@ def set_event_finished(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE, has_finished = TRUE WHERE id=" + str(event_id))
+    cur.execute("UPDATE OR IGNORE events SET has_started = TRUE, has_finished = TRUE WHERE id = ?", (event_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -423,7 +423,7 @@ def set_dkp_spent(event_id, dkp_spent):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("UPDATE OR IGNORE events SET total_dkp_spent = ? WHERE id=" + str(event_id), (dkp_spent,))
+    cur.execute("UPDATE OR IGNORE events SET total_dkp_spent = ? WHERE id = ?", (dkp_spent, event_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -435,7 +435,7 @@ def remove_event(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("DELETE FROM events WHERE id=" + str(event_id))
+    cur.execute("DELETE FROM events WHERE id = ?", (event_id,))
     conn.commit()
   except Error as e:
     print(e)
@@ -476,7 +476,7 @@ def get_from_blacklist(blacklist_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM blacklist WHERE id=" + str(blacklist_id))
+    cur.execute("SELECT * FROM blacklist WHERE id = ?", (blacklist_id,))
     return cur.fetchone()
   except Error as e:
     print(e)
@@ -505,7 +505,84 @@ def remove_from_blacklist(blacklist_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("DELETE FROM blacklist WHERE id=" + str(blacklist_id))
+    cur.execute("DELETE FROM blacklist WHERE id = ?", (blacklist_id,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+### ATTENDANCE SQL FUNCTIONS ###
+
+def add_attendance(event_id, player_id):
+  sql = """ INSERT OR IGNORE INTO attendance(event, player)
+              VALUES(?,?) """
+  to_insert = (event_id, player_id,)
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(sql, to_insert)
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def is_checked_in(event_id, player_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT EXISTS(SELECT 1 FROM attendance WHERE event = ? AND player = ?)", (event_id, player_id,))
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def set_attended(event_id, player_id, attended):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("UPDATE OR IGNORE attendance SET attended = ? WHERE event = ? and player = ?", (attended, event_id, player_id,))
+    conn.commit()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_attended(event_id, player_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT attended FROM attendance WHERE event = ? and player = ?", (event_id, player_id,))
+    return cur.fetchone()[0]
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def get_attendees(event_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT player FROM attendance WHERE event = ? and attended IS TRUE", (event_id,))
+    return cur.fetchall()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
+
+def remove_attendance(event_id, player_id):
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM attendance WHERE event = ? and player = ?", (event_id, player_id,))
     conn.commit()
   except Error as e:
     print(e)
