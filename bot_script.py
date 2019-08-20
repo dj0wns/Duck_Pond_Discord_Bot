@@ -21,6 +21,8 @@ import sqldb
 fpath=os.path.realpath(__file__)
 path=os.path.dirname(fpath)
 DB_FILE=path+"/local.db"
+datetime_format = '%Y-%m-%d %H:%M:%S'
+time_conversion_delta = datetime.timedelta(hours=3)
 
 auction_mode = False
 auction_item = ""
@@ -81,7 +83,7 @@ async def send_html(channel,html):
   tf.close()
 
 
-async def commands(channel):
+async def commands(channel, author, client):
   #make rich embed
   message=( 
             " - !hello - says hello back!\n"
@@ -97,13 +99,15 @@ async def commands(channel):
             " - !countdown - returns how much time till classic release\n"
             " - !paladin - asserts your role as a horde paladin\n"
             " - !classlist - list the number of each class currently in the guild\n"
-            " - !events - list all running and upcoming events\n"
             " - !blacklist - list current offense on the blacklist\n"
           )
   events=(
           "These commands are to be used during events:\n"
           " - !checkin - check in to the current running event\n"
           " - !bid [amount] - bids an amount of dkp in the current auction - make sure to private message the bot for anonymity\n"
+          " - !currentevent - displays information about the currently running event\n"
+          " - !upcomingevents - displays information about all upcoming events\n"
+          " - !checkedin - displays a list of all members checked in to the current event\n"
         )
   character=(
             "These commands modify or display information about your character:\n"
@@ -120,17 +124,20 @@ async def commands(channel):
           )
   lootmaster=( 
             "These commands only work if you have the \"Loot Master\" role:\n"
-            " - !createevent [start time (Y-M-D-H:M) in EST time] [duration in hours] [type (casual, raid, pvp, pve, tournament)] [Min DKP Award] [name] [Description]\n"
-            " - !removeevent [eventid] - Remove an event from the table\n"
-            " - !startevent [eventid] - Start an event early, and end any other events currently running\n"
-            " - !endevent - End the currently running event and distribute dkp\n"
             " - !adddkp [user]... [amount] - adds amount of dkp to users - uses discord name or char name\n"
-            " - !spenddkp [user] [amount] - spend a users dkp for winning an auction - for keeping track of expenditures for null-value\n"
-            " - !unspenddkp [user] [amount] - revert a mistake dkp spend for an auction\n"
             " - !removedkp [user]... [amount] - removes amount of dkp from users in the event of fixing or punishment - uses discord name or char name\n"
             " - !auction [itemname] - starts an auction for [itemname] users my private message RoboDuck to bid\n"
             " - !uncheckin [event] [user] - Removes a checked in user from an event\n"
             " - !didshow [eventid] [name] - overrides didnotshow\n"
+            )
+  lootmaster_event=(
+            "These commands are for controlling aspects of events:\n"
+            " - !createevent [start time (Y-M-D-H:M) in EST time] [duration in hours] [type (casual, raid, pvp, pve, tournament)] [Min DKP Award] [name] [Description]\n"
+            " - !removeevent [eventid] - Remove an event from the table\n"
+            " - !startevent [eventid] - Start an event early, and end any other events currently running\n"
+            " - !endevent - End the currently running event and distribute dkp\n"
+            " - !spenddkp [user] [amount] - spend a users dkp for winning an auction - for keeping track of expenditures for null-value\n"
+            " - !unspenddkp [user] [amount] - revert a mistake dkp spend for an auction\n"
             )
   moderation=(
             "These commands are for moderating players - Officers only:\n"
@@ -145,8 +152,11 @@ async def commands(channel):
   embedMessage.add_field(name="General Commands", value=message)
   embedMessage.add_field(name="Event Commands", value=events)
   embedMessage.add_field(name="Character Commands", value=character)
-  embedMessage.add_field(name="Loot Master Commands", value=lootmaster)
-  embedMessage.add_field(name="Moderation Commands", value=moderation)
+  if discord.utils.get(channel.guild.roles, name="Captain Duck") in author.roles or  discord.utils.get(channel.guild.roles, name="Officer Duck") in author.roles:
+    embedMessage.add_field(name="Moderation Commands", value=moderation)
+  if discord.utils.get(channel.guild.roles, name="Loot Master") in author.roles:
+    embedMessage.add_field(name="Loot Master Commands", value=lootmaster)
+    embedMessage.add_field(name="Loot Master Event Commands", value=lootmaster_event)
   await channel.send(embed=embedMessage)
 
 async def hello(channel, name):
@@ -600,12 +610,11 @@ async def forcecheckin(channel, author, token, player_id=None):
     await channel.send("No user with the name: " + token + " exists.")
     return
 
-  player = sqldb.get_player(player_id)
-  name = player[4]
+  user = client.get_user(int(player_id));
   
   sqldb.add_attendance(running_event[0],player_id)
 
-  await channel.send(name + " has been checked in to the event titled: "  + running_event[1])
+  await channel.send(user.name + " has been checked in to the event titled: "  + running_event[1])
 
 async def uncheckin(channel, author, tokens):
   running_event = sqldb.get_current_event()
@@ -618,8 +627,7 @@ async def uncheckin(channel, author, tokens):
     await channel.send("No user with the name: " + tokens[1] + " exists.")
     return
 
-  player = sqldb.get_player(player_id)
-  name = player[4]
+  name = client.get_user(int(player_id));
   
   sqldb.remove_attendance(running_event[0], player_id)
 
@@ -645,7 +653,8 @@ async def didnotshow(channel, author, tokens):
 
   sqldb.set_attended(event_id,player_id, 0)
   player = sqldb.get_player(player_id)
-  name = player[4]
+  user = client.get_user(int(player_id));
+  name = user.name
   await channel.send(name + " has been marked did not show from the event titled: " + str(event_id))
 
 async def didshow(channel, author, tokens):
@@ -668,7 +677,8 @@ async def didshow(channel, author, tokens):
 
   sqldb.set_attended(event_id,player_id,1)
   player = sqldb.get_player(player_id)
-  name = player[4]
+  user = client.get_user(int(player_id));
+  name = user.name
   await channel.send(name + " has been marked did show from the event titled: " + str(event_id))
 
 
@@ -734,6 +744,7 @@ async def unspenddkp(channel,author,name,tokens,client):
 
 async def event_begin_announcement(channel, client):
   #announcement channel
+
   channel = client.get_channel(581739109928927277)
   running_event = sqldb.get_current_event()
   if running_event is None:
@@ -743,9 +754,8 @@ async def event_begin_announcement(channel, client):
   event_type = running_event[5]
   dkp_amount = running_event[6]
 
-  await channel.send("@everyoneThe " + event_type + " event '" + name + ", " + description
-      + "' has begun! Come to the event and !checkin to earn "
-      + str(dkp_amount) + " dkp.")
+  await channel.send("@everyone - " + name + " has begun! Attend and !checkin to earn DKP!")
+  await currentevent(channel)
 
 async def startevent(channel, client, tokens):
   event_id = None
@@ -755,13 +765,19 @@ async def startevent(channel, client, tokens):
     await channel.send(str(tokens[1]) + " is not a valid id.")
     return
   
-  if sqldb.get_event(event_id) is None:
+  event = sqldb.get_event(event_id)
+  if event is None:
     await channel.send("The event with the id: " + str(event_id) + " does not exist.")
     return
+
+  if event[8] == 1:
+    await channel.send("The event with the id: " + str(event_id) + " has already begun.")
+    return
+    
   
   running_event = sqldb.get_current_event()
   if running_event is not None:
-    endevent(channel)
+    await endevent(channel)
 
   sqldb.set_event_started(event_id)
   await event_begin_announcement(channel, client)
@@ -842,11 +858,85 @@ async def fullblacklist(channel):
   for item in blacklist:
     player = sqldb.get_player(item[1])
     name = player[4]
+    if name is None:
+      name = "Unknown"
     message += name + "   |   " + item[2] + "   |   " + item[3] + "   |   " + item[5] + "\n"
 
   embedMessage = discord.Embed()
   embedMessage.add_field(name="Full Blacklist", value=message)
   await channel.send(embed=embedMessage)
+
+def event_to_embed(event):
+  event_id = event[0]
+  name = event[1]
+  description = event[2]
+  start_date = datetime.datetime.strptime(event[3], datetime_format)
+  end_date = datetime.datetime.strptime(event[4], datetime_format)
+  event_type = event[5]
+  min_dkp_award = event[6]
+  total_dkp_spent = event[7]
+
+  start_date -= time_conversion_delta
+  end_date -= time_conversion_delta
+
+  start_time = start_date.strftime("%m/%d/%Y, %I:%M %p") + " PST"
+  end_time = end_date.strftime("%m/%d/%Y, %I:%M %p") + " PST"
+
+  #append id to description
+  description += "\nEvent id: " + str(event_id)
+  
+  embedMessage = discord.Embed(title=name, description=description, color=0x091bff)
+  embedMessage.add_field(name="Type", value=event_type, inline=True)
+  embedMessage.add_field(name="Minimum DKP Award", value=str(min_dkp_award), inline=True)
+  embedMessage.add_field(name="Current DKP Spent", value=str(total_dkp_spent), inline=True)
+  embedMessage.add_field(name="Start Time", value=str(start_time), inline=True)
+  embedMessage.add_field(name="End Time", value=str(end_time), inline=True)
+  
+  return embedMessage
+
+async def currentevent(channel):
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  
+  embedMessage = event_to_embed(running_event)
+  await channel.send(embed=embedMessage)
+    
+async def upcomingevents(channel):
+  events = sqldb.get_upcoming_events()
+  for event in events:
+    embedMessage = event_to_embed(event)
+    await channel.send(embed=embedMessage)
+
+async def checkedin(channel):
+  running_event = sqldb.get_current_event()
+  if running_event is None:
+    await channel.send("There is no event currently running.")
+    return
+  attendees = sqldb.get_attendees(running_event[0])
+  if attendees is None:
+    await channel.send("There is no one checked in.")
+    return
+  message = ""
+  embedMessage = discord.Embed(title=running_event[1])
+  for attendee in attendees:
+    player_id = attendee[0]
+    player = sqldb.get_player(player_id)
+    name = player[4]
+    if name is None:
+      name = "Unknown"
+    user = client.get_user(int(player_id));
+    discord_name = user.name
+    if len(message) > 1000:
+      embedMessage.add_field(name="Checked In",value=message)
+      message = ""
+    message += discord_name + "   |   " + name + "\n";
+      
+  embedMessage.add_field(name="Checked In",value=message)
+  await channel.send(embed=embedMessage)
+
+
 
 async def parse_loot_master_commands(client,channel,author,name,content,roles,operation,tokens):
   if not discord.utils.get(channel.guild.roles, name="Loot Master") in roles:
@@ -961,7 +1051,7 @@ async def parse_command(client,channel,author,name,content):
   operation = tokens[0].lower()
   print(operation)
   if operation == "commands":
-    await commands(channel)
+    await commands(channel,author,client)
   elif operation == "hello":
     await hello(channel, name)
   elif operation == "quack":
@@ -982,8 +1072,14 @@ async def parse_command(client,channel,author,name,content):
     await days(channel, author, name)
   elif operation == "checkin":
     await checkin(channel, author, name)
+  elif operation == "checkedin":
+    await checkedin(channel)
   elif operation == "blacklist":
     await blacklist(channel)
+  elif operation == "currentevent":
+    await currentevent(channel)
+  elif operation == "upcomingevents":
+    await upcomingevents(channel)
   elif operation == "setname":
     if len(tokens) >= 2:   
       await setname(channel,author,name,tokens[1])
