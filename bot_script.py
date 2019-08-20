@@ -147,6 +147,13 @@ async def commands(channel, author, client):
             " - !removeblacklist [blacklist id] - Revmove an offense from the blacklist\n"
             " - !fullblacklist - Lists as much of the history of the blacklist as possible\n"
             )
+  officer_character_modifications=(
+            "If moderators notice something incorrect with a character, they can use these commands:\n"
+            " - !forcesetprof1 [profession]- sets your first profession or none for no profession\n"
+            " - !forcesetprof2 [profession]- sets your second profession or none for no profession\n"
+            " - !forcesetname [name] - set the name of your character for armory lookups and other references\n"
+            )
+
 
   embedMessage = discord.Embed()
   embedMessage.add_field(name="General Commands", value=message)
@@ -154,6 +161,7 @@ async def commands(channel, author, client):
   embedMessage.add_field(name="Character Commands", value=character)
   if discord.utils.get(channel.guild.roles, name="Captain Duck") in author.roles or  discord.utils.get(channel.guild.roles, name="Officer Duck") in author.roles:
     embedMessage.add_field(name="Moderation Commands", value=moderation)
+    embedMessage.add_field(name="Officer Character Modifications", value=officer_character_modifications)
   if discord.utils.get(channel.guild.roles, name="Loot Master") in author.roles:
     embedMessage.add_field(name="Loot Master Commands", value=lootmaster)
     embedMessage.add_field(name="Loot Master Event Commands", value=lootmaster_event)
@@ -489,7 +497,6 @@ async def setprof1(channel, author, name, prof):
     await channel.send(name + " has added " + prof + " as prof1.")
   else:
     await channel.send(prof + " is not a valid profession name.")
-    
 
 async def setprof2(channel, author, name, prof):
   prof_id = sqldb.get_prof_id(prof)
@@ -498,6 +505,42 @@ async def setprof2(channel, author, name, prof):
     await channel.send(name + " has added " + prof + " as prof2.")
   else:
     await channel.send(prof + " is not a valid profession name.")
+
+async def forcesetprof1(channel, client, tokens):
+  d_id = await id_from_name(channel, client, tokens[1])
+  if d_id is None:
+    return False
+  prof = tokens[2]
+  prof_id = sqldb.get_prof_id(prof)
+  if prof_id is not None:
+    sqldb.set_prof1(d_id,prof_id)
+    await channel.send(tokens[1] + " has added " + prof + " as prof1.")
+  else:
+    await channel.send(prof + " is not a valid profession name.")
+
+async def forcesetprof2(channel, client, tokens):
+  d_id = await id_from_name(channel, client, tokens[1])
+  if d_id is None:
+    return False
+  prof = tokens[2]
+  prof_id = sqldb.get_prof_id(prof)
+  if prof_id is not None:
+    sqldb.set_prof2(d_id,prof_id)
+    await channel.send(tokens[1] + " has added " + prof + " as prof2.")
+  else:
+    await channel.send(prof + " is not a valid profession name.")
+
+async def forcesetname(channel, client, tokens):
+  d_id = await id_from_name(channel, client, tokens[1])
+  if d_id is None:
+    return False
+  accname = tokens[2]
+  nametest = sqldb.get_player_by_char_name(accname)
+  if nametest is None:
+    sqldb.set_name(d_id,accname)
+    await channel.send(tokens[1] + "'s character name is now: " + accname)
+  else:
+    await channel.send("The character name, " + accname + ", is already in use.")
 
 async def getprofs(channel, author, name):
   prof1 = sqldb.get_prof1(author.id)
@@ -995,13 +1038,13 @@ async def parse_loot_master_commands(client,channel,author,name,content,roles,op
   elif operation == "endevent":
     await endevent(channel)
     return True
-  if operation == "uncheckin":
+  elif operation == "uncheckin":
     if len(tokens) >= 2:
       await uncheckin(channel, author, tokens)
     else:
       await notEnoughArguments(channel,1,"!uncheckin")
     return True
-  if operation == "didshow":
+  elif operation == "didshow":
     if len(tokens) >= 3:
       await didshow(channel, author, tokens)
     else:
@@ -1019,19 +1062,19 @@ async def parse_loot_officer_commands(client,channel,author,name,content,roles,o
     else:
       await notEnoughArguments(channel,1,"!forcecheckin")
     return True
-  if operation == "didnotshow":
+  elif operation == "didnotshow":
     if len(tokens) >= 3:
       await didnotshow(channel, author, tokens)
     else:
       await notEnoughArguments(channel,2,"!didnotshow")
     return True
-  if operation == "addblacklist":
+  elif operation == "addblacklist":
     if len(tokens) >= 4:
       await addblacklist(channel,author,name,tokens,client)
     else:
       await notEnoughArguments(channel,3,"!addblacklist")
     return True
-  if operation == "removeblacklist":
+  elif operation == "removeblacklist":
     if len(tokens) >= 2:
       await removeblacklist(channel, tokens)
     else:
@@ -1040,6 +1083,21 @@ async def parse_loot_officer_commands(client,channel,author,name,content,roles,o
   elif operation == "fullblacklist":
     await fullblacklist(channel)
     return True
+  elif operation == "forcesetprof1":
+    if len(tokens) == 3:   
+      await forcesetprof1(channel,client,tokens)
+    else:
+      await notEnoughArguments(channel,2,"!forcesetprof1")
+  elif operation == "forcesetprof2":
+    if len(tokens) == 3:   
+      await forcesetprof2(channel,client,tokens)
+    else:
+      await notEnoughArguments(channel,3,"!forcesetprof2")
+  elif operation == "forcesetname":
+    if len(tokens) == 3:   
+      await forcesetname(channel,client,tokens)
+    else:
+      await notEnoughArguments(channel,3,"!forcesetname")
   return False
 
 async def parse_command(client,channel,author,name,content):
@@ -1171,7 +1229,12 @@ async def on_member_remove(member):
 async def on_message(message):
   #Don't respond to self
   if not message.author == client.user:
-    await parse_command(client,message.channel,message.author,message.author.display_name,message.content)
+    try:
+      await parse_command(client,message.channel,message.author,message.author.display_name,message.content)
+    except Exception as e:
+      print(e)
+      await message.channel.send("Exception raised: '" + str(e) + "'\n - Pester dj0wns that his bot is broken on this command")
+      
   print(f"{message.channel}: {message.author}: {message.author.name}: {message.content}")
 
 client.run(token.strip())
