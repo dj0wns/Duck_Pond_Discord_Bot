@@ -170,7 +170,10 @@ def get_all_players():
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM players")
+    cur.execute(""" SELECT * FROM players
+                      ORDER BY
+                        joined_at ASC, 
+                        discord_id ASC """)
     results = cur.fetchall()
     return results
   except Error as e:
@@ -305,7 +308,10 @@ def get_prof1(discord_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof1 = professions.id WHERE players.discord_id = ?", (discord_id,))
+    cur.execute(""" SELECT name FROM professions
+                      INNER JOIN players
+                        ON players.prof1 = professions.id
+                      WHERE players.discord_id = ? """, (discord_id,))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -320,7 +326,10 @@ def get_prof2(discord_id):
     create_player(conn, discord_id)
     cur = conn.cursor()
     #the parens sanitize input i guess
-    cur.execute("SELECT name FROM professions INNER JOIN players ON players.prof2 = professions.id WHERE players.discord_id = ?", (discord_id,))
+    cur.execute(""" SELECT name FROM professions
+                      INNER JOIN players
+                        ON players.prof2 = professions.id
+                      WHERE players.discord_id = ? """, (discord_id,))
     conn.commit()
     return cur.fetchone()[0]
   except Error as e:
@@ -387,7 +396,13 @@ def get_upcoming_events():
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM events WHERE (has_started IS TRUE AND has_finished IS FALSE) OR has_started IS FALSE")
+    cur.execute(""" SELECT * FROM events
+                      WHERE 
+                        (has_started IS TRUE AND has_finished IS FALSE)
+                        OR has_started IS FALSE
+                      ORDER BY
+                        has_started DESC,
+                        start_time ASC """)
     return cur.fetchall()
   except Error as e:
     print(e)
@@ -488,12 +503,13 @@ def get_blacklist(from_date=None):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    sql = "SELECT * FROM blacklist"
-    if from_date is not None:
-      sql += " WHERE blacklisted_until > ?"
-      cur.execute(sql, (from_date,))
+    if from_date is None:
+      cur.execute(""" SELECT * FROM blacklist
+                        ORDER BY blacklisted_at ASC """)
     else:
-      cur.execute(sql)
+      cur.execute(""" SELECT * FROM blacklist
+                        WHERE blacklisted_until > ?
+                        ORDER BY blacklisted_at ASC """, (from_date,))
     return cur.fetchall()
   except Error as e:
     print(e)
@@ -570,7 +586,15 @@ def get_attendees(event_id):
   try:
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute("SELECT player FROM attendance WHERE event = ? and attended IS TRUE", (event_id,))
+    cur.execute(""" SELECT attendance.player FROM attendance
+                      INNER JOIN players
+                        ON attendance.player = players.discord_id
+                      WHERE
+                        event = ?
+                        AND attended IS TRUE
+                      ORDER BY
+                        players.character_name ASC,
+                        attendance.id ASC """, (event_id,))
     return cur.fetchall()
   except Error as e:
     print(e)
