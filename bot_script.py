@@ -100,6 +100,7 @@ async def commands(channel, author, client):
             " - !paladin - asserts your role as a horde paladin\n"
             " - !classlist - list the number of each class currently in the guild\n"
             " - !blacklist - list current offense on the blacklist\n"
+            " - !loot - lists the loot policy\n"
           )
   events=(
           "These commands are to be used during events:\n"
@@ -179,6 +180,42 @@ async def forthehorde(channel, name):
               "Quack! Quack! Quaaaaaack!",
               "Death to the enemies of the Horde!"]
   await channel.send(random.choice(messages))
+
+async def loot(channel):
+  #make rich embed
+  distribute=( 
+        "We will be prioritizing loot in the following fashion:\n"
+        "1. If an item is BIS for the current content for our main tank it goes to our main tank. We need a strong main tank to progress deep into molten core so this helps everyone get more loot. The main tank will be tasked with creating and posting a planned BIS list for each set of content so that it is known which items will go to the tank. This includes mats for the crafted gear.\n"
+        "2. Officers can reserve one item from each unique raid (one item in total for molten core, not each reset) and that will be publicized before we start doing the raid. This is to reward them for the extra work they put into making the guild function.\n"
+        "3. The remaining items will be auctioned off using the DKP system.\n"
+        "4. Anything that is not bid on will be disenchanted or sold and kept in the guild bank.\n"
+          )
+  dkp = (
+      "DKP (Dragon kill points) are a looting system designed to fairly reward players for the time and effort they put into raids. You earn points from raids and other activities and get to spend those points on loot within raids.\n"
+  )
+
+  earn = (
+      "DKP can be earned 2 different ways:\n"
+      "Participating in Guild Raids: 10 DKP minimum per raid\n"
+      "Participating in biweekly guild events: 5 DKP per event\n"
+  )
+
+  spend = (
+      'When an item you want drops from a raid boss, a lootmaster will start a sealed auction where interested players can message RoboDuck "!bid [amount]" to bid on that item. Then the lootmaster will close the auction and reveal the bids. Whoever bid the highest gets the item. If there is a tie it will go to a roll between the top bidders. High roll wins the item and loses the DKP.\n'
+      "There is a maximum bid of 100 DKP to prevent hoarding.\n"
+  )
+
+  null_value = (
+        'To prevent inflation, when someone wins an item the DKP they bid will be split among all other members of the raid. So the better drops there are in a raid the better everyone gets paid. If less than 10 DKP is given to each player as the result of bids then each player will make a flat 10 DKP from participating in the raid.'
+  )
+
+  embedMessage = discord.Embed(color=0xa335ee)
+  embedMessage.add_field(name="How We Distribute Loot", value=distribute)
+  embedMessage.add_field(name="What is DKP?", value=dkp)
+  embedMessage.add_field(name="How to Earn DKP", value=earn)
+  embedMessage.add_field(name="How to Spend DKP", value=spend)
+  embedMessage.add_field(name="How does Null-Value Work?", value=null_value)
+  await channel.send(embed=embedMessage)
 
 async def need(channel, author, name):
   sqldb.increment_need(author.id)
@@ -1138,6 +1175,8 @@ async def parse_command(client,channel,author,name,content):
     await currentevent(channel)
   elif operation == "upcomingevents":
     await upcomingevents(channel)
+  elif operation == "loot":
+    await loot(channel)
   elif operation == "setname":
     if len(tokens) >= 2:   
       await setname(channel,author,name,tokens[1])
@@ -1203,6 +1242,21 @@ async def on_ready(): #This runs once when connected
   print(f'We have logged in as {client.user}')
   await client.change_presence(activity=discord.Game(name="Eat the Bread"))
 
+  while True:
+    event = sqldb.get_next_event()
+    if event is not None:
+      event_start = datetime.datetime.strptime(event[3], datetime_format)
+      print(str(event_start) + " " +  str(datetime.datetime.now()))
+      if event_start <=  datetime.datetime.now():
+        #announce in the Inn
+        channel = client.get_channel(581612148837449730)
+        event_id = event[0]
+        tokens = [None]
+        tokens.append(str(event_id))
+        await startevent(channel, client, tokens)
+        
+    await asyncio.sleep(30) #Waits for 10 seconds
+
 @client.event
 async def on_member_join(member):
   print("New user joined: " + member.display_name + str(member.id))
@@ -1230,7 +1284,8 @@ async def on_message(message):
   #Don't respond to self
   if not message.author == client.user:
     try:
-      await parse_command(client,message.channel,message.author,message.author.display_name,message.content)
+      if len(message.content) > 0:
+        await parse_command(client,message.channel,message.author,message.author.display_name,message.content)
     except Exception as e:
       print(e)
       await message.channel.send("Exception raised: '" + str(e) + "'\n - Pester dj0wns that his bot is broken on this command")

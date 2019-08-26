@@ -409,6 +409,22 @@ def get_upcoming_events():
   finally:
     conn.close()
 
+def get_next_event():
+  try:
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(""" SELECT * FROM events
+                      WHERE 
+                        has_started IS FALSE
+                      ORDER BY
+                        has_started DESC,
+                        start_time ASC """)
+    return cur.fetchone()
+  except Error as e:
+    print(e)
+  finally:
+    conn.close()
+
 
 def set_event_started(event_id):
   try:
