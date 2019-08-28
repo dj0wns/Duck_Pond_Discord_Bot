@@ -101,6 +101,7 @@ async def commands(channel, author, client):
             " - !classlist - list the number of each class currently in the guild\n"
             " - !blacklist - list current offense on the blacklist\n"
             " - !loot - lists the loot policy\n"
+            " - !guildinfo - lists the hierarchy and officer positions\n"
           )
   events=(
           "These commands are to be used during events:\n"
@@ -181,6 +182,40 @@ async def forthehorde(channel, name):
               "Death to the enemies of the Horde!"]
   await channel.send(random.choice(messages))
 
+async def guildinfo(channel):
+  #make rich embed
+  ranks=( 
+          
+          "**Captain Duck**: This role is reserved for the leaders of the guild @dj0wns and @Mesmer.\n"
+
+          "**Officer Duck**: These are members who hold an officer role within the guild (current officer roles shown later in the post).\n"
+
+          "**Elite Duck**: These are the more hardcore members of the guild who make it to every raid night or dominate in PVP.\n"
+
+          "**Duck**: Core guild member, have passed the trial phase by being part of the guild for a few weeks.\n"
+
+          "**Duckling**: New guild member, in a trial phase.\n\n"
+         
+          )
+  filled_officer_positions=( 
+          "**Raid Leader**(@Dj0wns currently - will take applications if you really want it): This officer's job is to coordinate the raid effort including explaining fights and general raid strategy.\n"
+
+          "**Events Coordinator**(@Dj0wns currently): This officer's job is to host a weekly or bi-weekly guildwide event doing anything from dueling tournaments, to races across azeroth, to hide and seek or whatever you think would be fun. Going to these events would provide some amount of dkp so make them fun and worth attending!\n"
+
+          "**Quartermaster**(@Saved): This officer's job is to make sure all the members of the guild are geared. They are the person who knows what is BiS and will help create or lead dungeon groups to get guild members BiS gear.\n\n"
+          )
+  open_officer_positions=( 
+          "**PVP Leader**: This officer's job is to coordinate World PVP as well as be the shotcaller and strategist for groups of guild members in battlegrounds.\n"
+          "**Recruitment Officer**: This officer's job is to recruit members to the guild. At first this will be to fill our initial raid roster and then continue to grow the guild.\n"
+
+          "**Member Relations**: This officer's job is to make sure all the members of the guild are happy and to resolve conflicts. In the event of dissatisfaction with the guild among members, this officer's job is to advocate for the member experience among the rest of the officers to get the issue resolved.\n"
+          )
+  embedMessage = discord.Embed(color=0x8C1616)
+  embedMessage.add_field(name="Ranks", value=ranks)
+  embedMessage.add_field(name="Officer Positions", value=filled_officer_positions)
+  embedMessage.add_field(name="Officer Positions Currently Open", value=open_officer_positions)
+  await channel.send(embed=embedMessage)
+
 async def loot(channel):
   #make rich embed
   distribute=( 
@@ -237,7 +272,6 @@ async def stats(channel, author, name):
   dkp = str(result[1])
   need= str(result[2])
   greed = str(result[3])
-  days = str(days_since_join(result[5]))
   avatar = author.avatar_url_as(static_format='png',size=128)
   avatarbytes = await avatar.read()
   avatarImage = Image.open(io.BytesIO(avatarbytes))
@@ -591,7 +625,7 @@ async def addrole(channel, author, name, role):
     await channel.send(name + " is now a " + role + "!")
   elif role == "heal" or role == "healer":
     await author.add_roles(discord.utils.get(channel.guild.roles, name="HEALER")) 
-    await channel.send(name + " is now a " + role + "!")
+    await channel.send(name + " is now a healer!")
   elif role == "tank":
     await author.add_roles(discord.utils.get(channel.guild.roles, name="TANK")) 
     await channel.send(name + " is now a " + role + "!")
@@ -605,7 +639,7 @@ async def removerole(channel, author, name, role):
     await channel.send(name + " is no longer a " + role + "!")
   elif role == "heal" or role == "healer":
     await author.remove_roles(discord.utils.get(channel.guild.roles, name="HEALER")) 
-    await channel.send(name + " is no longer a " + role + "!")
+    await channel.send(name + " is no longer a healer!")
   elif role == "tank":
     await author.remove_roles(discord.utils.get(channel.guild.roles, name="TANK")) 
     await channel.send(name + " is no longer a " + role + "!")
@@ -707,11 +741,11 @@ async def uncheckin(channel, author, tokens):
     await channel.send("No user with the name: " + tokens[1] + " exists.")
     return
 
-  name = client.get_user(int(player_id));
+  user=channel.guild.get_member(int(player_id))
   
   sqldb.remove_attendance(running_event[0], player_id)
 
-  await channel.send(name + " has been checked out of the event titled: "  + running_event[1])
+  await channel.send(user.display_name + " has been checked out of the event titled: "  + running_event[1])
 
 async def didnotshow(channel, author, tokens):
   event_id = tokens[1]
@@ -1177,6 +1211,8 @@ async def parse_command(client,channel,author,name,content):
     await upcomingevents(channel)
   elif operation == "loot":
     await loot(channel)
+  elif operation == "guildinfo":
+    await guildinfo(channel)
   elif operation == "setname":
     if len(tokens) >= 2:   
       await setname(channel,author,name,tokens[1])
